@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<!--
+  404.html — "Page not found" page for https://smathews10-star.github.io/vibe-coding/
+  v1.0 - initial build: friendly message, home page button, corporate styling
+  v1.1 - real GitHub username added to all home page links
+  v2.0 - rebuilt to project specification: single file, vanilla JavaScript,
+         accessibility pass (landmarks, ARIA labels, skip link, keyboard focus),
+         system fonts only so no request leaves the browser, shows the address
+         the visitor tried, adds a "Go back" button when there is a page to return to
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="description" content="The page you asked for isn't on this site. Use the link to return to the home page.">
+  <title>Page not found | Sebastian Mathew</title>
+
+  <style>
+    /* v2.0 - colour tokens. Every colour on the page comes from this list,
+       so the light and dark themes only need to swap these values. */
+    :root {
+      --navy: #14284B;     /* brand colour: band, headline, button */
+      --ink: #1F2933;      /* main text */
+      --muted: #52606D;    /* secondary text */
+      --paper: #F5F7FA;    /* page background */
+      --rule: #CBD2D9;     /* thin dividing lines */
+      --on-navy: #FFFFFF;  /* text that sits on top of navy */
+      --focus: #B4530A;    /* keyboard focus ring: high contrast against navy and paper */
+    }
+
+    /* v2.0 - dark theme, used automatically when the visitor's device is set to dark mode */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --navy: #9DB6E0;
+        --ink: #E4E7EB;
+        --muted: #A9B3BE;
+        --paper: #121A26;
+        --rule: #2C3A4E;
+        --on-navy: #121A26;
+        --focus: #F5A25D;
+      }
+    }
+
+    /* v2.0 - base layout. The page is a column: band at top, content in the middle, footer at the bottom. */
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      /* System fonts only (no font CDN), so the page makes no outside requests */
+      font: 400 1.0625rem/1.6 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* v2.0 - skip link: hidden until a keyboard user presses Tab, then it appears at the top */
+    .skip {
+      position: absolute;
+      left: 1rem;
+      top: -4rem;
+      background: var(--navy);
+      color: var(--on-navy);
+      padding: .5rem 1rem;
+      border-radius: 4px;
+      z-index: 10;
+    }
+    .skip:focus { top: 1rem; }
+
+    .band { height: 8px; background: var(--navy); }
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 3rem 1.5rem;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 40rem;
+      margin: 0 auto;
+      border-left: 3px solid var(--navy);
+      padding-left: 2rem;
+    }
+
+    .status { margin: 0 0 .5rem; color: var(--muted); font-size: .9375rem; }
+
+    h1 {
+      margin: 0 0 1rem;
+      font: 600 clamp(2rem, 5vw, 2.75rem)/1.15 Georgia, "Times New Roman", serif;
+      color: var(--navy);
+    }
+    /* Remove the default outline when the heading receives focus from the script (it is not a control) */
+    h1:focus { outline: none; }
+
+    p { margin: 0 0 1.25rem; max-width: 34rem; }
+
+    /* v2.0 - the address the visitor tried. Long addresses wrap instead of overflowing on phones. */
+    .tried { color: var(--muted); font-size: .9375rem; }
+    .tried code {
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      background: var(--rule);
+      color: var(--ink);
+      padding: .1rem .35rem;
+      border-radius: 3px;
+      word-break: break-all;
+    }
+
+    /* v2.0 - action area: home button plus optional back button */
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      margin-top: 2rem;
+    }
+    .btn {
+      display: inline-block;
+      font: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 4px;
+      cursor: pointer;
+      min-height: 44px; /* comfortable touch target */
+    }
+    .btn-home {
+      background: var(--navy);
+      color: var(--on-navy);
+      font-size: 1.25rem;
+      padding: 1rem 2rem;
+      border: 2px solid var(--navy);
+    }
+    .btn-home:hover { filter: brightness(1.15); }
+    .btn-back {
+      background: transparent;
+      color: var(--navy);
+      font-size: 1rem;
+      padding: .9rem 1.5rem;
+      border: 2px solid var(--navy);
+    }
+    .btn-back:hover { background: var(--rule); }
+    .btn-back[hidden] { display: none; }
+
+    /* v2.0 - visible keyboard focus on every interactive element */
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    .addr-line { margin-top: 1.25rem; font-size: .9375rem; color: var(--muted); }
+    .addr { color: var(--navy); word-break: break-all; }
+
+    footer {
+      border-top: 1px solid var(--rule);
+      padding: 1rem 1.5rem;
+      font-size: .875rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* v2.0 - phone layout: narrower indent, buttons go full width and stack */
+    @media (max-width: 480px) {
+      main { padding: 2rem 1rem; }
+      .wrap { padding-left: 1.25rem; }
+      .actions { flex-direction: column; }
+      .btn { width: 100%; text-align: center; }
+    }
+
+    /* v2.0 - respect visitors who ask their device to reduce motion */
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main-content">Skip to main content</a>
+
+  <header>
+    <div class="band" aria-hidden="true"></div>
+  </header>
+
+  <main id="main-content">
+    <section class="wrap" aria-labelledby="page-title">
+      <p class="status">Page not found</p>
+      <h1 id="page-title" tabindex="-1">Sorry, we couldn't find that page.</h1>
+
+      <p>The link may be out of date, or the address may have a small typo. Everything else on the site is still here, and the home page is the best place to pick up again.</p>
+
+      <!-- Filled in by the script with the address the visitor asked for. Hidden if the script can't run. -->
+      <p class="tried" id="tried-address" hidden>
+        You asked for <code id="tried-path"></code>
+      </p>
+
+      <nav class="actions" aria-label="Ways to continue">
+        <a class="btn btn-home" href="https://smathews10-star.github.io/vibe-coding/">Go to the home page</a>
+        <!-- Only shown by the script when there is a previous page on this site to return to -->
+        <button class="btn btn-back" id="back-button" type="button" hidden aria-label="Go back to the previous page">Go back</button>
+      </nav>
+
+      <p class="addr-line">
+        Or visit
+        <a class="addr" href="https://smathews10-star.github.io/vibe-coding/" aria-label="Home page: smathews10-star.github.io/vibe-coding">https://smathews10-star.github.io/vibe-coding/</a>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p style="margin:0">&copy; <span id="year">2026</span> Sebastian Mathew</p>
+  </footer>
+
+  <script>
+    // v2.0 - page behaviour. Plain JavaScript, no libraries.
+    // Nothing here sends data anywhere: it only reads information the browser
+    // already has (the address bar and the previous page) and changes this page.
+
+    // Wait until the page's HTML has fully loaded before running anything,
+    // so every element the script looks for is guaranteed to exist.
+    document.addEventListener('DOMContentLoaded', function () {
+
+      // ----- 1. Show the visitor the address they tried -----
+      // window.location.pathname is the part of the address after the site name,
+      // for example "/vibe-coding/old-page.html". Showing it helps people spot a typo.
+      // We use textContent (not innerHTML) so that anything odd typed into the
+      // address bar is displayed as plain text and can never run as code.
+      var path = window.location.pathname;
+      var triedBlock = document.getElementById('tried-address');
+      var triedPath = document.getElementById('tried-path');
+
+      if (path && path !== '/' && triedBlock && triedPath) {
+        // decodeURIComponent turns "%20" back into a space so the address is readable.
+        // It can fail on badly formed addresses, so fall back to the raw version if it does.
+        var readable;
+        try {
+          readable = decodeURIComponent(path);
+        } catch (e) {
+          readable = path;
+        }
+        triedPath.textContent = readable;
+        triedBlock.hidden = false;
+      }
+
+      // ----- 2. Offer a "Go back" button, but only when it makes sense -----
+      // document.referrer is the page the visitor came from (empty if they typed the
+      // address or used a bookmark). We only show the button if they came from a page
+      // on this same site, so "Go back" never sends them somewhere unexpected.
+      var backButton = document.getElementById('back-button');
+      var cameFromThisSite = false;
+
+      try {
+        if (document.referrer) {
+          var previous = new URL(document.referrer);
+          cameFromThisSite = previous.origin === window.location.origin;
+        }
+      } catch (e) {
+        // If the previous address can't be read, keep the button hidden.
+        cameFromThisSite = false;
+      }
+
+      if (backButton && cameFromThisSite && window.history.length > 1) {
+        backButton.hidden = false;
+        // Clicking the button (or pressing Enter or Space on it, which buttons
+        // do automatically) takes the visitor one step back in their history.
+        backButton.addEventListener('click', function () {
+          window.history.back();
+        });
+      }
+
+      // ----- 3. Keep the footer year current -----
+      // Replaces the year typed into the HTML with this year's date from the
+      // visitor's own device, so the footer never goes out of date.
+      var yearSpan = document.getElementById('year');
+      if (yearSpan) {
+        yearSpan.textContent = new Date().getFullYear();
+      }
+
+      // ----- 4. Help screen reader and keyboard users land in the right place -----
+      // Moving focus to the main heading means a screen reader announces
+      // "Sorry, we couldn't find that page" straight away, and the next Tab press
+      // goes to the home page button. preventScroll stops the page from jumping.
+      var heading = document.getElementById('page-title');
+      if (heading) {
+        heading.focus({ preventScroll: true });
+      }
+    });
+  </script>
+</body>
+</html>
