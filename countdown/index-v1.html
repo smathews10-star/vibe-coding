@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<!-- v1.0 - initial build: birthday countdown timer with live color pickers -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Countdown to December 10</title>
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+     A small "cake candle" palette: deep ink background, warm
+     candlelight gold as the accent. Slab-serif display numerals
+     give the countdown some weight and personality instead of
+     the usual thin geometric sans digits.
+     ============================================================ */
+  :root {
+    --bg: #1B1035;          /* deep twilight ink, default background */
+    --text: #FFC857;        /* warm candlelight gold, default text/number color */
+    --panel: rgba(255, 255, 255, 0.06);
+    --panel-border: rgba(255, 255, 255, 0.14);
+    --muted: rgba(255, 255, 255, 0.6);
+    --focus-ring: #7CE7E1;
+    --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-label: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* Load two distinct, deliberate typefaces from Google Fonts:
+     Fraunces (a warm, high-contrast serif) for the big numbers,
+     and Inter (a quiet, legible sans) for labels and UI chrome. */
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Inter:wght@400;500;600;700&display=swap');
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-label);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    transition: background-color 0.4s ease, color 0.4s ease;
+    /* Subtle candlelight glow behind everything, purely decorative */
+    background-image: radial-gradient(circle at 50% 15%, rgba(255, 200, 87, 0.10), transparent 55%);
+  }
+
+  .page {
+    width: 100%;
+    max-width: 760px;
+  }
+
+  /* ------------------------------------------------------------
+     HEADER: occasion framing, kept small and quiet so the
+     numbers stay the hero of the page.
+     ------------------------------------------------------------ */
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-label);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    margin: 0 0 8px 0;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.75rem, 5vw, 2.75rem);
+    margin: 0;
+    line-height: 1.15;
+  }
+
+  /* ------------------------------------------------------------
+     COUNTDOWN GRID: four big, bold numbers with labels beneath.
+     ------------------------------------------------------------ */
+  .countdown {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 36px;
+  }
+
+  .unit {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    padding: 20px 8px 16px;
+    text-align: center;
+  }
+
+  .unit .value {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(2.25rem, 8vw, 4.25rem);
+    line-height: 1;
+    display: block;
+    /* letting the number itself carry the weight, no accent color tricks */
+  }
+
+  .unit .unit-label {
+    display: block;
+    margin-top: 10px;
+    font-family: var(--font-label);
+    font-size: clamp(0.7rem, 1.6vw, 0.9rem);
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  /* Small screens: two columns instead of a cramped four-across row */
+  @media (max-width: 480px) {
+    .countdown {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* ------------------------------------------------------------
+     ARRIVAL MESSAGE: shown once the countdown reaches zero,
+     replacing the grid. Hidden by default.
+     ------------------------------------------------------------ */
+  .arrived {
+    display: none;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 5vw, 2.25rem);
+    font-weight: 600;
+    margin-bottom: 36px;
+    padding: 32px 16px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+  }
+
+  .arrived.show {
+    display: block;
+  }
+
+  .countdown.hide {
+    display: none;
+  }
+
+  /* ------------------------------------------------------------
+     CONTROLS: color pickers for text and background.
+     Kept as a quiet utility row, not competing with the numbers.
+     ------------------------------------------------------------ */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+    padding-top: 24px;
+    border-top: 1px solid var(--panel-border);
+  }
+
+  .control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    padding: 8px 16px 8px 8px;
+  }
+
+  .control label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  /* Custom-ish styling for the native color input, kept small and round */
+  .control input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    padding: 0;
+    cursor: pointer;
+    background: none;
+    overflow: hidden;
+  }
+  .control input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+    border-radius: 50%;
+  }
+  .control input[type="color"]::-webkit-color-swatch {
+    border: 2px solid var(--panel-border);
+    border-radius: 50%;
+  }
+  .control input[type="color"]::-moz-color-swatch {
+    border: 2px solid var(--panel-border);
+    border-radius: 50%;
+  }
+
+  .reset-button {
+    font-family: var(--font-label);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+  .reset-button:hover {
+    background: var(--panel);
+  }
+
+  /* Visible keyboard focus everywhere, for accessibility */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* Respect users who've asked for reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+
+  /* Screen-reader-only text, used for the live announcement region */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+
+  <div class="page">
+
+    <header>
+      <p class="eyebrow">Counting down to</p>
+      <h1 id="occasion-heading">Sebastian's birthday — December 10</h1>
+    </header>
+
+    <!-- The four countdown units: days, hours, minutes, seconds.
+         role="timer" + aria-live="off" on the container (we announce
+         changes separately via a throttled live region below, so we
+         don't spam screen readers every single second). -->
+    <div class="countdown" id="countdown" role="timer" aria-label="Time remaining until birthday">
+      <div class="unit">
+        <span class="value" id="days">00</span>
+        <span class="unit-label">Days</span>
+      </div>
+      <div class="unit">
+        <span class="value" id="hours">00</span>
+        <span class="unit-label">Hours</span>
+      </div>
+      <div class="unit">
+        <span class="value" id="minutes">00</span>
+        <span class="unit-label">Minutes</span>
+      </div>
+      <div class="unit">
+        <span class="value" id="seconds">00</span>
+        <span class="unit-label">Seconds</span>
+      </div>
+    </div>
+
+    <!-- Shown instead of the grid once the countdown hits zero -->
+    <div class="arrived" id="arrived-message">🎂 It's here — happy birthday!</div>
+
+    <!-- A visually-hidden live region that announces the remaining
+         time roughly once a minute, so screen reader users get an
+         update without hearing "seconds" read aloud every second. -->
+    <p class="sr-only" id="live-announcer" aria-live="polite"></p>
+
+    <div class="controls">
+      <div class="control">
+        <label for="text-color-picker">Text color</label>
+        <input type="color" id="text-color-picker" value="#FFC857" aria-describedby="text-color-note">
+      </div>
+      <div class="control">
+        <label for="bg-color-picker">Background color</label>
+        <input type="color" id="bg-color-picker" value="#1B1035" aria-describedby="bg-color-note">
+      </div>
+      <button type="button" class="reset-button" id="reset-colors">Reset colors</button>
+    </div>
+    <span id="text-color-note" class="sr-only">Choose the color used for the countdown numbers and headings</span>
+    <span id="bg-color-note" class="sr-only">Choose the page background color</span>
+
+  </div>
+
+<script>
+  // ============================================================
+  // BIRTHDAY COUNTDOWN — v1.0
+  // Plain-language walkthrough of what this script does:
+  //   1. Figures out the next December 10th (this year, or next
+  //      year if December 10th has already passed).
+  //   2. Every second, works out how much time is left and writes
+  //      the days/hours/minutes/seconds into the page.
+  //   3. When the countdown hits zero, swaps the number grid out
+  //      for a celebration message.
+  //   4. Wires up the two color pickers so the person can change
+  //      the text color and background color live, and remembers
+  //      their choice for next time using localStorage.
+  // ============================================================
+
+  (function () {
+    'use strict';
+
+    // ----- Step 1: work out the target date/time -----------------
+    // The birthday is December 10th. If today is already past
+    // December 10th this year, we count down to next year's
+    // December 10th instead. Midnight (00:00:00) is used as the
+    // moment the birthday "arrives".
+    function getNextBirthday() {
+      const now = new Date();
+      const year = now.getFullYear();
+
+      // Start with December 10th of the current year, at midnight.
+      let target = new Date(year, 11, 10, 0, 0, 0, 0); // month is 0-indexed, so 11 = December
+
+      // If that date/time has already passed, move the target to
+      // December 10th of next year instead.
+      if (target.getTime() <= now.getTime()) {
+        target = new Date(year + 1, 11, 10, 0, 0, 0, 0);
+      }
+
+      return target;
+    }
+
+    let birthdayTarget = getNextBirthday();
+
+    // ----- Step 2: grab references to the page elements we update --
+    const daysEl = document.getElementById('days');
+    const hoursEl = document.getElementById('hours');
+    const minutesEl = document.getElementById('minutes');
+    const secondsEl = document.getElementById('seconds');
+    const countdownGrid = document.getElementById('countdown');
+    const arrivedMessage = document.getElementById('arrived-message');
+    const liveAnnouncer = document.getElementById('live-announcer');
+
+    // Always show two digits, e.g. "03" instead of "3", so the
+    // numbers don't jump around in width as they change.
+    function padTwoDigits(number) {
+      return String(number).padStart(2, '0');
+    }
+
+    // Keeps track of the last minute we announced to screen reader
+    // users, so we only announce once a minute rather than every
+    // single second (which would be overwhelming to listen to).
+    let lastAnnouncedMinute = null;
+
+    // ----- Step 3: the function that runs every second -----------
+    function updateCountdown() {
+      const now = new Date();
+      let msRemaining = birthdayTarget.getTime() - now.getTime();
+
+      // If we've reached (or passed) the target moment, show the
+      // celebration message instead of the number grid, and stop
+      // here — no need to keep computing days/hours/etc.
+      if (msRemaining <= 0) {
+        countdownGrid.classList.add('hide');
+        arrivedMessage.classList.add('show');
+        liveAnnouncer.textContent = "It's the birthday — happy birthday!";
+        return;
+      }
+
+      // Break the remaining milliseconds down into whole days,
+      // hours, minutes, and seconds.
+      const totalSeconds = Math.floor(msRemaining / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      daysEl.textContent = padTwoDigits(days);
+      hoursEl.textContent = padTwoDigits(hours);
+      minutesEl.textContent = padTwoDigits(minutes);
+      secondsEl.textContent = padTwoDigits(seconds);
+
+      // Update the screen-reader announcement once per minute only.
+      if (minutes !== lastAnnouncedMinute) {
+        lastAnnouncedMinute = minutes;
+        liveAnnouncer.textContent =
+          days + ' days, ' + hours + ' hours, and ' + minutes + ' minutes remaining until the birthday.';
+      }
+    }
+
+    // Run once immediately so the page doesn't show "00 00 00 00"
+    // for a moment before the first tick, then keep updating every
+    // second after that.
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+
+    // ----- Step 4: color pickers ----------------------------------
+    const textColorPicker = document.getElementById('text-color-picker');
+    const bgColorPicker = document.getElementById('bg-color-picker');
+    const resetButton = document.getElementById('reset-colors');
+    const rootStyle = document.documentElement.style;
+
+    // The original default colors, used by the "Reset colors" button.
+    const DEFAULT_TEXT_COLOR = '#FFC857';
+    const DEFAULT_BG_COLOR = '#1B1035';
+
+    // A per-viewer convenience only: remembers the chosen colors in
+    // this browser so they persist on reload. Wrapped in try/catch
+    // because some browsers block storage access entirely (e.g. in
+    // certain private-browsing modes), and the page should still
+    // work fine even if saving the preference fails.
+    function saveColorPreference(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (err) {
+        // Storage isn't available — that's fine, colors just won't
+        // persist between visits. The countdown itself still works.
+      }
+    }
+
+    function loadColorPreference(key, fallback) {
+      try {
+        return localStorage.getItem(key) || fallback;
+      } catch (err) {
+        return fallback;
+      }
+    }
+
+    function applyTextColor(hex) {
+      rootStyle.setProperty('--text', hex);
+      textColorPicker.value = hex;
+    }
+
+    function applyBgColor(hex) {
+      rootStyle.setProperty('--bg', hex);
+      bgColorPicker.value = hex;
+    }
+
+    // On load, apply any previously-saved colors (or the defaults).
+    applyTextColor(loadColorPreference('birthdayCountdownTextColor', DEFAULT_TEXT_COLOR));
+    applyBgColor(loadColorPreference('birthdayCountdownBgColor', DEFAULT_BG_COLOR));
+
+    // Whenever the person picks a new color, apply it immediately
+    // and remember it for next time.
+    textColorPicker.addEventListener('input', function (event) {
+      const hex = event.target.value;
+      applyTextColor(hex);
+      saveColorPreference('birthdayCountdownTextColor', hex);
+    });
+
+    bgColorPicker.addEventListener('input', function (event) {
+      const hex = event.target.value;
+      applyBgColor(hex);
+      saveColorPreference('birthdayCountdownBgColor', hex);
+    });
+
+    // "Reset colors" puts everything back to the original defaults.
+    resetButton.addEventListener('click', function () {
+      applyTextColor(DEFAULT_TEXT_COLOR);
+      applyBgColor(DEFAULT_BG_COLOR);
+      saveColorPreference('birthdayCountdownTextColor', DEFAULT_TEXT_COLOR);
+      saveColorPreference('birthdayCountdownBgColor', DEFAULT_BG_COLOR);
+    });
+
+  })();
+</script>
+
+</body>
+</html>

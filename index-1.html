@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<!--
+  Photo Slider
+  v1.0 - initial build: five cards, Next/Previous with wrap-around,
+         uniform image sizing, keyboard + swipe support, screen reader announcements.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photo slider</title>
+
+  <style>
+    /* v1.0 - Colour and size tokens. Change these to restyle the whole page. */
+    :root {
+      --wall:   #D9DCD6;   /* page background, a soft gallery-wall grey */
+      --card:   #FAFAF7;   /* the card the photo sits on */
+      --ink:    #1E2422;   /* text and button icons */
+      --accent: #2F5D62;   /* button fill and focus ring */
+      --muted:  #5A6461;   /* secondary text */
+      --frame-ratio: 4 / 3;  /* every photo is shown at this shape, whatever the file size */
+      --max-width: 760px;
+      font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: clamp(1rem, 4vw, 3rem);
+      background: var(--wall);
+      color: var(--ink);
+    }
+
+    .slider {
+      width: 100%;
+      max-width: var(--max-width);
+    }
+
+    .slider h1 {
+      font-size: clamp(1.25rem, 3vw, 1.6rem);
+      font-weight: 600;
+      margin: 0 0 1rem;
+    }
+
+    /* The window you look through. Anything outside it is clipped. */
+    .viewport {
+      overflow: hidden;
+      border-radius: 6px;
+    }
+
+    /* The long strip holding all five cards side by side. JavaScript slides it left/right. */
+    .track {
+      display: flex;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      transition: transform 450ms cubic-bezier(.22, .8, .3, 1);
+    }
+
+    /* One card: always exactly the width of the viewport. */
+    .card {
+      flex: 0 0 100%;
+      background: var(--card);
+      padding: clamp(.6rem, 2vw, 1rem);
+    }
+
+    /* The fixed-shape frame that makes every photo the same size. */
+    .frame {
+      aspect-ratio: var(--frame-ratio);
+      width: 100%;
+      background: #C9CDC6;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    /* object-fit: cover fills the frame and crops any overflow, so big and
+       small files, landscape or portrait, all appear identical in size. */
+    .frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Shown only if a photo file can't be found. */
+    .missing {
+      color: var(--muted);
+      font-size: .95rem;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    /* Controls row: Previous, counter, Next */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .controls button {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      min-height: 44px;          /* comfortable touch target */
+      padding: .55rem 1.1rem;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .controls button:hover { background: #244A4E; }
+
+    .controls svg { width: 1.1em; height: 1.1em; }
+
+    .counter {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Clear, visible keyboard focus everywhere */
+    :focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    /* Hides text visually but keeps it for screen readers */
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      margin: -1px; padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* On small phones, show arrows only and keep the button text for screen readers */
+    @media (max-width: 420px) {
+      .controls .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .controls button { padding: .55rem .9rem; }
+    }
+
+    /* Respect people who have asked their device for less motion */
+    @media (prefers-reduced-motion: reduce) {
+      .track { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    The slider. aria-roledescription tells screen readers this is a "carousel",
+    and aria-labelledby gives it the heading as its name.
+  -->
+  <section class="slider" aria-roledescription="carousel" aria-labelledby="slider-title">
+    <h1 id="slider-title">Photos</h1>
+
+    <!-- tabindex="0" lets keyboard users focus the photo area and use arrow keys -->
+    <div class="viewport" tabindex="0" aria-describedby="slider-help">
+      <ul class="track" id="track">
+        <!--
+          Each card is a "slide" group with its own position label.
+          Edit the alt text to describe what's actually in each photo.
+        -->
+        <li class="card" role="group" aria-roledescription="slide" aria-label="1 of 5">
+          <div class="frame"><img src="photo-1.jpg" alt="Photo 1"></div>
+        </li>
+        <li class="card" role="group" aria-roledescription="slide" aria-label="2 of 5">
+          <div class="frame"><img src="photo-2.jpg" alt="Photo 2"></div>
+        </li>
+        <li class="card" role="group" aria-roledescription="slide" aria-label="3 of 5">
+          <div class="frame"><img src="photo-3.jpg" alt="Photo 3"></div>
+        </li>
+        <li class="card" role="group" aria-roledescription="slide" aria-label="4 of 5">
+          <div class="frame"><img src="photo-4.jpg" alt="Photo 4"></div>
+        </li>
+        <li class="card" role="group" aria-roledescription="slide" aria-label="5 of 5">
+          <div class="frame"><img src="photo-5.jpg" alt="Photo 5"></div>
+        </li>
+      </ul>
+    </div>
+
+    <p id="slider-help" class="visually-hidden">Use the left and right arrow keys to move between photos.</p>
+
+    <div class="controls">
+      <button type="button" id="prev" aria-controls="track">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="label">Previous</span>
+      </button>
+
+      <!-- Visible "2 of 5" counter. aria-live makes screen readers announce each change. -->
+      <p class="counter" id="counter" aria-live="polite" aria-atomic="true">Photo 1 of 5</p>
+
+      <button type="button" id="next" aria-controls="track">
+        <span class="label">Next</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <script>
+    // v1.0 - initial build
+    // Everything below runs only in the browser. Nothing is sent anywhere.
+
+    (function () {
+      'use strict';
+
+      // ---------------------------------------------------------------
+      // 1. Find the pieces of the page we need to work with.
+      // ---------------------------------------------------------------
+      const track    = document.getElementById('track');
+      const viewport = document.querySelector('.viewport');
+      const cards    = Array.from(track.querySelectorAll('.card'));
+      const prevBtn  = document.getElementById('prev');
+      const nextBtn  = document.getElementById('next');
+      const counter  = document.getElementById('counter');
+
+      const total = cards.length;  // 5 cards
+      let current = 0;             // which card is showing; 0 means the first one
+
+      // ---------------------------------------------------------------
+      // 2. If a photo file is missing, swap the broken-image icon for a
+      //    short, plain message saying which file it expected.
+      // ---------------------------------------------------------------
+      cards.forEach(function (card) {
+        const img = card.querySelector('img');
+        img.addEventListener('error', function () {
+          const note = document.createElement('p');
+          note.className = 'missing';
+          note.textContent = 'Add ' + img.getAttribute('src') + ' to this folder to show it here.';
+          img.replaceWith(note);
+        });
+      });
+
+      // ---------------------------------------------------------------
+      // 3. Show a given card.
+      //    - Slides the strip so the chosen card sits in the window.
+      //    - Hides the other cards from screen readers and the Tab key
+      //      (the "inert" attribute), so people only meet the visible photo.
+      //    - Updates the "Photo X of 5" counter, which screen readers announce.
+      // ---------------------------------------------------------------
+      function showCard(index) {
+        current = index;
+        track.style.transform = 'translateX(-' + (current * 100) + '%)';
+
+        cards.forEach(function (card, i) {
+          const isActive = i === current;
+          card.toggleAttribute('inert', !isActive);
+          card.setAttribute('aria-hidden', String(!isActive));
+        });
+
+        counter.textContent = 'Photo ' + (current + 1) + ' of ' + total;
+      }
+
+      // ---------------------------------------------------------------
+      // 4. Next and Previous, with wrap-around.
+      //    The % (remainder) maths means:
+      //      Next on card 5  → back to card 1
+      //      Previous on card 1 → round to card 5
+      // ---------------------------------------------------------------
+      function goNext() { showCard((current + 1) % total); }
+      function goPrev() { showCard((current - 1 + total) % total); }
+
+      nextBtn.addEventListener('click', goNext);
+      prevBtn.addEventListener('click', goPrev);
+
+      // ---------------------------------------------------------------
+      // 5. Keyboard support.
+      //    When the photo area has focus, Left/Right arrows move between
+      //    cards, and Home/End jump to the first or last card.
+      //    (Buttons already work with Enter and Space on their own.)
+      // ---------------------------------------------------------------
+      viewport.addEventListener('keydown', function (event) {
+        switch (event.key) {
+          case 'ArrowRight': goNext(); break;
+          case 'ArrowLeft':  goPrev(); break;
+          case 'Home':       showCard(0); break;
+          case 'End':        showCard(total - 1); break;
+          default: return;            // any other key: do nothing special
+        }
+        event.preventDefault();       // stop the page scrolling on these keys
+      });
+
+      // ---------------------------------------------------------------
+      // 6. Swipe support for phones and tablets.
+      //    Remember where a finger touched down; when it lifts, if it
+      //    moved sideways more than 40px (and more sideways than up/down),
+      //    treat it as a swipe left (Next) or right (Previous).
+      // ---------------------------------------------------------------
+      let startX = 0, startY = 0;
+
+      viewport.addEventListener('touchstart', function (event) {
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+      }, { passive: true });
+
+      viewport.addEventListener('touchend', function (event) {
+        const dx = event.changedTouches[0].clientX - startX;
+        const dy = event.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+          dx < 0 ? goNext() : goPrev();
+        }
+      }, { passive: true });
+
+      // ---------------------------------------------------------------
+      // 7. Start on the first card.
+      // ---------------------------------------------------------------
+      showCard(0);
+    })();
+  </script>
+</body>
+</html>

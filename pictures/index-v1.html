@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<!--
+  Photo Slider
+  v1.0 - initial build: five cards, Next/Previous with wrap-around,
+         uniform image sizing, keyboard + swipe support, screen reader announcements.
+  v1.1 - counter moved directly under the card and shortened to "3 of 5".
+  v1.2 - left/right arrow keys now work anywhere on the page, not only
+         when the photo area has focus.
+  v1.3 - each card has a caption under the picture and a full description
+         for screen readers; all pictures are now listed in one PHOTOS list
+         at the top of the script, and the cards are built from that list.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photo slider</title>
+
+  <style>
+    /* v1.0 - Colour and size tokens. Change these to restyle the whole page. */
+    :root {
+      --wall:   #D9DCD6;   /* page background, a soft gallery-wall grey */
+      --card:   #FAFAF7;   /* the card the photo sits on */
+      --ink:    #1E2422;   /* text and button icons */
+      --accent: #2F5D62;   /* button fill and focus ring */
+      --muted:  #5A6461;   /* secondary text */
+      --frame-ratio: 4 / 3;  /* every photo is shown at this shape, whatever the file size */
+      --max-width: 760px;
+      font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: clamp(1rem, 4vw, 3rem);
+      background: var(--wall);
+      color: var(--ink);
+    }
+
+    .slider {
+      width: 100%;
+      max-width: var(--max-width);
+    }
+
+    .slider h1 {
+      font-size: clamp(1.25rem, 3vw, 1.6rem);
+      font-weight: 600;
+      margin: 0 0 1rem;
+    }
+
+    /* The window you look through. Anything outside it is clipped. */
+    .viewport {
+      overflow: hidden;
+      border-radius: 6px;
+    }
+
+    /* The long strip holding all five cards side by side. JavaScript slides it left/right. */
+    .track {
+      display: flex;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      transition: transform 450ms cubic-bezier(.22, .8, .3, 1);
+    }
+
+    /* One card: always exactly the width of the viewport. */
+    .card {
+      flex: 0 0 100%;
+      background: var(--card);
+      padding: clamp(.6rem, 2vw, 1rem);
+    }
+
+    /* v1.3 - Each card holds a <figure>: the picture plus its caption. */
+    .card figure {
+      margin: 0;
+    }
+
+    /* The fixed-shape frame that makes every photo the same size. */
+    .frame {
+      aspect-ratio: var(--frame-ratio);
+      width: 100%;
+      background: #C9CDC6;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    /* object-fit: cover fills the frame and crops any overflow, so big and
+       small files, landscape or portrait, all appear identical in size. */
+    .frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* v1.3 - Caption under the picture, inside the card */
+    .caption {
+      margin: .7rem .15rem .15rem;
+      font-size: 1rem;
+      line-height: 1.45;
+      color: var(--ink);
+      max-width: 65ch;
+    }
+
+    /* Shown only if a photo file can't be found. */
+    .missing {
+      color: var(--muted);
+      font-size: .95rem;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    /* Controls row: Previous and Next */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .controls button {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      min-height: 44px;          /* comfortable touch target */
+      padding: .55rem 1.1rem;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .controls button:hover { background: #244A4E; }
+
+    .controls svg { width: 1.1em; height: 1.1em; }
+
+    /* v1.1 - Small "3 of 5" counter sitting directly under the card */
+    .counter {
+      margin: .6rem 0 0;
+      text-align: center;
+      font-size: .9rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Clear, visible keyboard focus everywhere */
+    :focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    /* Hides text visually but keeps it for screen readers */
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      margin: -1px; padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* On small phones, show arrows only and keep the button text for screen readers */
+    @media (max-width: 420px) {
+      .controls .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .controls button { padding: .55rem .9rem; }
+    }
+
+    /* Respect people who have asked their device for less motion */
+    @media (prefers-reduced-motion: reduce) {
+      .track { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    The slider. aria-roledescription tells screen readers this is a "carousel",
+    and aria-labelledby gives it the heading as its name.
+  -->
+  <section class="slider" aria-roledescription="carousel" aria-labelledby="slider-title">
+    <h1 id="slider-title">Photos</h1>
+
+    <!-- tabindex="0" lets keyboard users focus the photo area and use arrow keys -->
+    <div class="viewport" tabindex="0" aria-describedby="slider-help">
+      <!--
+        v1.3 - The cards are built by the script from the PHOTOS list.
+        To change or add pictures, edit that list. Nothing here needs touching.
+      -->
+      <ul class="track" id="track"></ul>
+    </div>
+
+    <!--
+      v1.1 - Counter under the card. Sighted users see "3 of 5"; the hidden word
+      "Photo" gives screen readers context. aria-live announces each change.
+    -->
+    <p class="counter" aria-live="polite" aria-atomic="true"><span class="visually-hidden">Photo </span><span id="counter"></span></p>
+
+    <p id="slider-help" class="visually-hidden">Use the left and right arrow keys to move between photos.</p>
+
+    <div class="controls">
+      <button type="button" id="prev" aria-controls="track">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="label">Previous</span>
+      </button>
+
+      <button type="button" id="next" aria-controls="track">
+        <span class="label">Next</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <script>
+    // =================================================================
+    //  YOUR PICTURES — edit this list, and only this list.
+    // =================================================================
+    //  One entry per picture, in the order you want them shown.
+    //    file        – the picture's file name, in the same folder as this page
+    //    caption     – the short line shown under the picture
+    //    description – what the picture shows, read aloud to people who
+    //                  can't see it. Describe what's in it, not just its title.
+    //
+    //  To add a picture: put the file in the folder and add one more
+    //  { file, caption, description } entry below. The cards, the
+    //  "3 of 5" counter, and the wrap-around all adjust by themselves.
+    //  To remove one: delete its entry.
+    // =================================================================
+    const PHOTOS = [
+      {
+        file: 'photo-1.jpg',
+        caption: 'Sebastian at Watoto, Uganda',
+        description: 'Describe what the first picture shows.'
+      },
+      {
+        file: 'photo-2.jpg',
+        caption: 'Caption for the second picture.',
+        description: 'Describe what the second picture shows.'
+      },
+      {
+        file: 'photo-3.jpg',
+        caption: 'Caption for the third picture.',
+        description: 'Describe what the third picture shows.'
+      },
+      {
+        file: 'photo-4.jpg',
+        caption: 'Caption for the fourth picture.',
+        description: 'Describe what the fourth picture shows.'
+      },
+      {
+        file: 'photo-5.jpg',
+        caption: 'Caption for the fifth picture.',
+        description: 'Describe what the fifth picture shows.'
+      },
+      {
+        file: 'photo-6.jpg',
+        caption: 'Caption for the sixth picture.',
+        description: 'Describe what the sixth picture shows.'
+      }
+    ];
+    // =================================================================
+    //  Nothing below this line needs to change.
+    // =================================================================
+
+    // v1.0 - initial build
+    // v1.1 - counter text shortened to "3 of 5" (it now sits under the card)
+    // v1.2 - arrow keys listened for on the whole page instead of just the photo area
+    // v1.3 - PHOTOS list added above; cards, captions and descriptions are built from it
+    // Everything below runs only in the browser. Nothing is sent anywhere.
+
+    (function () {
+      'use strict';
+
+      // ---------------------------------------------------------------
+      // 1. Find the pieces of the page we need to work with.
+      // ---------------------------------------------------------------
+      const track    = document.getElementById('track');
+      const viewport = document.querySelector('.viewport');
+      const prevBtn  = document.getElementById('prev');
+      const nextBtn  = document.getElementById('next');
+      const counter  = document.getElementById('counter');
+
+      const total = PHOTOS.length;  // however many pictures are in the list
+      let current = 0;              // which card is showing; 0 means the first one
+
+      // If the list is empty there's nothing to slide, so say so and stop.
+      if (total === 0) {
+        counter.textContent = 'No pictures yet. Add one to the PHOTOS list.';
+        prevBtn.hidden = true;
+        nextBtn.hidden = true;
+        return;
+      }
+
+      // ---------------------------------------------------------------
+      // 1b. (v1.3) Build one card for each entry in the PHOTOS list.
+      //     Each card looks like this once built:
+      //
+      //       <li class="card" role="group" aria-roledescription="slide" aria-label="3 of 5">
+      //         <figure>
+      //           <div class="frame"><img src="photo-3.jpg" alt="(description)"></div>
+      //           <figcaption class="caption">(caption)</figcaption>
+      //         </figure>
+      //       </li>
+      //
+      //     - The description goes in the picture's alt text, which screen
+      //       readers read out in place of the picture.
+      //     - The caption goes in a <figcaption>, the standard HTML way to
+      //       attach a caption to a picture.
+      //     - The text is inserted as plain text, never as HTML, so any
+      //       quotes or symbols in your captions show up exactly as typed.
+      // ---------------------------------------------------------------
+      const cards = PHOTOS.map(function (photo, i) {
+        const card = document.createElement('li');
+        card.className = 'card';
+        card.setAttribute('role', 'group');
+        card.setAttribute('aria-roledescription', 'slide');
+        card.setAttribute('aria-label', (i + 1) + ' of ' + total);
+
+        const figure = document.createElement('figure');
+
+        const frame = document.createElement('div');
+        frame.className = 'frame';
+
+        const img = document.createElement('img');
+        img.src = photo.file;
+        img.alt = photo.description || '';
+
+        const caption = document.createElement('figcaption');
+        caption.className = 'caption';
+        caption.textContent = photo.caption || '';
+
+        frame.appendChild(img);
+        figure.appendChild(frame);
+        figure.appendChild(caption);
+        card.appendChild(figure);
+        track.appendChild(card);
+
+        return card;
+      });
+
+      // ---------------------------------------------------------------
+      // 2. If a photo file is missing, swap the broken-image icon for a
+      //    short, plain message saying which file it expected.
+      // ---------------------------------------------------------------
+      cards.forEach(function (card) {
+        const img = card.querySelector('img');
+        img.addEventListener('error', function () {
+          const note = document.createElement('p');
+          note.className = 'missing';
+          note.textContent = 'Add ' + img.getAttribute('src') + ' to this folder to show it here.';
+          img.replaceWith(note);
+        });
+      });
+
+      // ---------------------------------------------------------------
+      // 3. Show a given card.
+      //    - Slides the strip so the chosen card sits in the window.
+      //    - Hides the other cards from screen readers and the Tab key
+      //      (the "inert" attribute), so people only meet the visible photo.
+      //    - Updates the "X of Y" counter under the card, which screen readers announce.
+      // ---------------------------------------------------------------
+      function showCard(index) {
+        current = index;
+        track.style.transform = 'translateX(-' + (current * 100) + '%)';
+
+        cards.forEach(function (card, i) {
+          const isActive = i === current;
+          card.toggleAttribute('inert', !isActive);
+          card.setAttribute('aria-hidden', String(!isActive));
+        });
+
+        counter.textContent = (current + 1) + ' of ' + total;
+      }
+
+      // ---------------------------------------------------------------
+      // 4. Next and Previous, with wrap-around.
+      //    The % (remainder) maths means:
+      //      Next on the last card    → back to the first
+      //      Previous on the first card → round to the last
+      // ---------------------------------------------------------------
+      function goNext() { showCard((current + 1) % total); }
+      function goPrev() { showCard((current - 1 + total) % total); }
+
+      nextBtn.addEventListener('click', goNext);
+      prevBtn.addEventListener('click', goPrev);
+
+      // ---------------------------------------------------------------
+      // 5. Keyboard support (v1.2: works anywhere on the page).
+      //    Left/Right arrows move between cards and Home/End jump to the
+      //    first or last card, no matter what on the page has focus.
+      //    (Buttons already work with Enter and Space on their own.)
+      // ---------------------------------------------------------------
+      document.addEventListener('keydown', function (event) {
+        // Leave the arrow keys alone if someone is typing in a text box,
+        // or holding a modifier key (Alt+Left is "browser back", for example).
+        const el = event.target;
+        if (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+        switch (event.key) {
+          case 'ArrowRight': goNext(); break;
+          case 'ArrowLeft':  goPrev(); break;
+          case 'Home':       showCard(0); break;
+          case 'End':        showCard(total - 1); break;
+          default: return;            // any other key: do nothing special
+        }
+        event.preventDefault();       // stop the page scrolling on these keys
+      });
+
+      // ---------------------------------------------------------------
+      // 6. Swipe support for phones and tablets.
+      //    Remember where a finger touched down; when it lifts, if it
+      //    moved sideways more than 40px (and more sideways than up/down),
+      //    treat it as a swipe left (Next) or right (Previous).
+      // ---------------------------------------------------------------
+      let startX = 0, startY = 0;
+
+      viewport.addEventListener('touchstart', function (event) {
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+      }, { passive: true });
+
+      viewport.addEventListener('touchend', function (event) {
+        const dx = event.changedTouches[0].clientX - startX;
+        const dy = event.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+          dx < 0 ? goNext() : goPrev();
+        }
+      }, { passive: true });
+
+      // ---------------------------------------------------------------
+      // 7. Start on the first card.
+      // ---------------------------------------------------------------
+      showCard(0);
+    })();
+  </script>
+</body>
+</html>

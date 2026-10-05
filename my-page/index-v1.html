@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<!--
+  Sebastian Mathew — personal professional page
+  ============================================================
+  v1.0 - initial build (October 2026)
+         Single-file page: HTML, CSS and vanilla JavaScript together.
+         No build tools, no frameworks, no forms, no tracking.
+         Nothing the visitor does is sent to any server.
+
+  FILES THIS PAGE EXPECTS (keep the names exactly as written):
+    index.html            <- this file
+    images/headshot.jpg   <- square photo, at least 800 x 800 px
+    images/uganda.jpg     <- landscape photo, at least 1200 x 800 px
+
+  If either image is missing, the page shows a tidy fallback
+  (initials for the headshot, a green panel for the Uganda photo).
+
+  FONTS: loaded from Bunny Fonts, a privacy-friendly mirror of
+  Google Fonts that does not log or track visitors. If fonts fail
+  to load, the page falls back to Georgia / system sans-serif.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sebastian Mathew | Strategy, finance and enablement</title>
+  <meta name="description" content="Sebastian Mathew connects capital, institutions, and communities to make big programs work. Strategy, finance, and enablement across continents and three sectors.">
+  <meta name="theme-color" content="#13233B">
+
+  <!-- Typefaces: Source Serif 4 for headings, Public Sans for body text.
+       Public Sans was designed for U.S. government sites, a quiet nod to D.C. -->
+  <link rel="preconnect" href="https://fonts.bunny.net">
+  <link rel="stylesheet" href="https://fonts.bunny.net/css?family=public-sans:400,500,600|source-serif-4:400,500,600,400i">
+
+  <style>
+    /* ==========================================================
+       v1.0 - DESIGN TOKENS
+       Colors, type and spacing live here so they can be
+       changed in one place.
+       ========================================================== */
+    :root {
+      --navy:      #13233B;  /* main dark color: authority */
+      --navy-soft: #1E3352;  /* slightly lighter navy for depth */
+      --paper:     #F4F5F1;  /* page background: cool off-white */
+      --white:     #FFFFFF;
+      --ink:       #1A2333;  /* body text */
+      --muted:     #4A5568;  /* secondary text */
+      --forest:    #2E5E47;  /* accent: landscapes and livelihoods */
+      --leaf:      #A7CCB2;  /* accent on dark backgrounds */
+      --rule:      #D4D8D0;  /* thin dividing lines */
+
+      --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+      --sans:  "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+      --measure: 68ch;              /* comfortable line length */
+      --wrap: 1120px;               /* maximum content width */
+      --gutter: clamp(1.25rem, 4vw, 2.5rem);
+
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    *, *::before, *::after { box-sizing: inherit; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(4.5rem + env(safe-area-inset-top, 0px)); }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 1.0625rem;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: var(--forest); text-underline-offset: 0.18em; }
+    a:hover { color: var(--navy); }
+
+    /* Visible keyboard focus everywhere */
+    :focus-visible {
+      outline: 3px solid var(--forest);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+    .on-dark :focus-visible { outline-color: var(--leaf); }
+
+    /* Text only screen readers hear */
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0);
+      white-space: nowrap; border: 0;
+    }
+
+    /* Skip link: first thing a keyboard user reaches */
+    .skip-link {
+      position: absolute; left: 1rem; top: -4rem;
+      background: var(--navy); color: var(--white);
+      padding: 0.75rem 1rem; z-index: 100;
+      text-decoration: none; font-weight: 600;
+    }
+    .skip-link:focus { top: calc(1rem + env(safe-area-inset-top, 0px)); color: var(--white); }
+
+    .wrap {
+      width: 100%;
+      max-width: var(--wrap);
+      margin: 0 auto;
+      padding: 0 var(--gutter);
+    }
+
+    h1, h2, h3 {
+      font-family: var(--serif);
+      font-weight: 500;
+      line-height: 1.15;
+      color: var(--navy);
+      margin: 0;
+    }
+    h2 { font-size: clamp(1.9rem, 3.6vw, 2.6rem); letter-spacing: -0.01em; }
+    h3 { font-size: 1.35rem; }
+    p { margin: 0 0 1em; max-width: var(--measure); }
+
+    /* ==========================================================
+       v1.0 - HEADER AND NAVIGATION
+       ========================================================== */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(244, 245, 241, 0.94);
+      backdrop-filter: saturate(140%) blur(8px);
+      border-bottom: 1px solid transparent;
+      padding-top: env(safe-area-inset-top, 0px);
+      transition: border-color 0.2s;
+    }
+    .site-header.is-scrolled { border-bottom-color: var(--rule); }
+    .header-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      min-height: 4.25rem;
+    }
+    .site-name {
+      font-family: var(--serif);
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--navy);
+      text-decoration: none;
+    }
+    .nav-list {
+      list-style: none; margin: 0; padding: 0;
+      display: flex; gap: 1.75rem;
+    }
+    .nav-list a {
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 0.95rem;
+      padding: 0.35rem 0;
+      border-bottom: 2px solid transparent;
+    }
+    .nav-list a:hover { color: var(--forest); }
+    .nav-list a[aria-current="true"] { border-bottom-color: var(--forest); color: var(--navy); }
+
+    .nav-toggle {
+      display: none;
+      background: none; border: 1px solid var(--rule);
+      color: var(--navy); font: inherit; font-size: 0.95rem;
+      padding: 0.45rem 0.9rem; border-radius: 4px; cursor: pointer;
+    }
+
+    @media (max-width: 760px) {
+      .nav-toggle { display: inline-block; }
+      .site-nav {
+        position: absolute; left: 0; right: 0; top: 100%;
+        background: var(--paper);
+        border-bottom: 1px solid var(--rule);
+        display: none;
+      }
+      .site-nav.is-open { display: block; }
+      .nav-list { flex-direction: column; gap: 0; padding: 0.5rem var(--gutter) 1rem; }
+      .nav-list a { display: block; padding: 0.75rem 0; border-bottom: 1px solid var(--rule); }
+      .nav-list a[aria-current="true"] { border-bottom-color: var(--rule); color: var(--forest); font-weight: 600; }
+    }
+
+    /* ==========================================================
+       v1.0 - HERO
+       Headline on the left; on the right, the "connector"
+       diagram: Sebastian's photo at the center, linked to
+       Capital, Institutions and Communities.
+       ========================================================== */
+    .hero { padding: clamp(3rem, 8vw, 6.5rem) 0 clamp(3.5rem, 8vw, 6rem); }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: clamp(2rem, 5vw, 4.5rem);
+      align-items: center;
+    }
+    .hero h1 {
+      font-size: clamp(2.3rem, 5.2vw, 4.1rem);
+      letter-spacing: -0.02em;
+      line-height: 1.06;
+      max-width: 16ch;
+    }
+    .hero-sub {
+      font-size: clamp(1.1rem, 1.8vw, 1.3rem);
+      color: var(--muted);
+      margin: 1.5rem 0 2.25rem;
+      max-width: 40ch;
+    }
+    .hero-name {
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--forest);
+      font-size: 1.15rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .button {
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      background: var(--navy); color: var(--white);
+      padding: 0.9rem 1.4rem;
+      border-radius: 4px;
+      font-weight: 600; font-size: 1rem;
+      text-decoration: none;
+      transition: background-color 0.2s;
+    }
+    .button:hover { background: var(--forest); color: var(--white); }
+    .button svg { width: 1.1rem; height: 1.1rem; fill: currentColor; flex: none; }
+
+    /* The connector diagram */
+    .connector {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      margin-left: auto;
+      aspect-ratio: 1 / 1;
+    }
+    .connector svg.links { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .connector .line {
+      stroke: var(--forest);
+      stroke-width: 1.5;
+      fill: none;
+      stroke-dasharray: 220;
+      stroke-dashoffset: 0;
+    }
+    .connector .ring { stroke: var(--rule); stroke-width: 1; fill: none; stroke-dasharray: 3 5; }
+    .connector .node { fill: var(--paper); stroke: var(--forest); stroke-width: 1.5; }
+    .connector .node-label {
+      font-family: var(--serif);
+      font-size: 17px;
+      fill: var(--navy);
+    }
+    /* One orchestrated page-load moment: the lines draw out
+       from the photo to each node. JavaScript adds .is-drawing. */
+    .connector.is-drawing .line { stroke-dashoffset: 220; }
+    .connector.is-drawn .line { stroke-dashoffset: 0; transition: stroke-dashoffset 1.2s ease-out; }
+    .connector.is-drawn .line:nth-of-type(2) { transition-delay: 0.15s; }
+    .connector.is-drawn .line:nth-of-type(3) { transition-delay: 0.3s; }
+
+    .portrait {
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 44%;
+      aspect-ratio: 1 / 1;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--navy);
+      box-shadow: 0 0 0 6px var(--paper), 0 0 0 7px var(--forest);
+      display: grid; place-items: center;
+    }
+    .portrait .initials {
+      font-family: var(--serif);
+      color: var(--white);
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      letter-spacing: 0.04em;
+    }
+    .portrait img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+
+    @media (max-width: 860px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .connector { max-width: 340px; margin: 0 auto; }
+    }
+
+    /* ==========================================================
+       v1.0 - SHARED SECTION SPACING
+       ========================================================== */
+    .section { padding: clamp(3.5rem, 8vw, 6rem) 0; }
+    .section-head { margin-bottom: clamp(2rem, 4vw, 3rem); }
+    .section-head p { color: var(--muted); margin-top: 0.9rem; font-size: 1.1rem; }
+
+    /* ==========================================================
+       v1.0 - ABOUT
+       ========================================================== */
+    .about { background: var(--white); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(2rem, 5vw, 4rem);
+      align-items: start;
+    }
+    .about-text p { font-family: var(--serif); font-size: 1.18rem; line-height: 1.7; }
+    .about-text h2 { margin-bottom: 1.5rem; }
+    .field-photo { margin: 0; }
+    .field-photo .frame {
+      position: relative;
+      aspect-ratio: 3 / 2;
+      background: linear-gradient(135deg, var(--forest), #3E7558);
+      border-radius: 4px;
+      overflow: hidden;
+      display: grid; place-items: center;
+    }
+    .field-photo .frame .placeholder { color: rgba(255,255,255,0.85); font-size: 0.95rem; padding: 1rem; text-align: center; }
+    .field-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .field-photo figcaption {
+      font-size: 0.92rem; color: var(--muted);
+      margin-top: 0.75rem; font-style: italic; font-family: var(--serif);
+    }
+    @media (max-width: 860px) {
+      .about-grid { grid-template-columns: 1fr; }
+      .field-photo { order: -1; }   /* photo sits above the bio on phones */
+    }
+
+    /* ==========================================================
+       v1.0 - PROBLEMS I SOLVE
+       Each problem is a row: the problem on the left, the
+       proof from real work on the right.
+       ========================================================== */
+    .problems-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--navy); }
+    .problem {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: clamp(1.25rem, 4vw, 3.5rem);
+      padding: clamp(1.75rem, 3.5vw, 2.5rem) 0;
+      border-bottom: 1px solid var(--rule);
+    }
+    .problem h3 { font-size: clamp(1.35rem, 2.4vw, 1.7rem); margin-bottom: 0.6rem; }
+    .problem .when { color: var(--muted); margin: 0; }
+    .proof { list-style: none; margin: 0; padding: 0; }
+    .proof li {
+      padding-left: 1.1rem;
+      border-left: 2px solid var(--forest);
+      margin-bottom: 1rem;
+      max-width: var(--measure);
+    }
+    .proof li:last-child { margin-bottom: 0; }
+    .proof strong { color: var(--navy); font-weight: 600; }
+    @media (max-width: 760px) {
+      .problem { grid-template-columns: 1fr; }
+    }
+
+    /* ==========================================================
+       v1.0 - SELECTED RESULTS (dark band)
+       ========================================================== */
+    .results { background: var(--navy); color: #E6EAF0; }
+    .results h2 { color: var(--white); }
+    .results .section-head p { color: #B9C3D1; }
+    .ledger {
+      list-style: none; margin: 0; padding: 0;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      column-gap: clamp(2rem, 5vw, 4rem);
+    }
+    .ledger li {
+      display: grid;
+      grid-template-columns: 7.5rem 1fr;
+      gap: 1.25rem;
+      align-items: baseline;
+      padding: 1.25rem 0;
+      border-top: 1px solid rgba(255,255,255,0.16);
+    }
+    .ledger .figure {
+      font-family: var(--serif);
+      font-size: 2rem;
+      line-height: 1;
+      color: var(--leaf);
+    }
+    .ledger .desc { color: #DCE2EA; }
+    @media (max-width: 760px) {
+      .ledger { grid-template-columns: 1fr; }
+      .ledger li { grid-template-columns: 6rem 1fr; }
+      .ledger .figure { font-size: 1.7rem; }
+    }
+
+    /* ==========================================================
+       v1.0 - EXPERIENCE (organizations, teaching, speaking)
+       ========================================================== */
+    .experience-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: clamp(2rem, 5vw, 4rem);
+    }
+    .experience h3 {
+      font-size: 1.15rem;
+      color: var(--forest);
+      font-style: italic;
+      font-weight: 400;
+      margin-bottom: 1rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--rule);
+    }
+    .org-list { list-style: none; margin: 0; padding: 0; }
+    .org-list li {
+      font-family: var(--serif);
+      font-size: clamp(1.2rem, 2vw, 1.45rem);
+      color: var(--navy);
+      padding: 0.45rem 0;
+    }
+    .org-list.small li { font-family: var(--sans); font-size: 1rem; color: var(--ink); padding: 0.5rem 0; }
+    .org-list.two-col { columns: 2; column-gap: 2rem; }
+    .org-list.two-col li { break-inside: avoid; }
+    .stack > * + * { margin-top: 2.5rem; }
+    @media (max-width: 760px) {
+      .experience-grid { grid-template-columns: 1fr; }
+      .org-list.two-col { columns: 1; }
+    }
+
+    /* ==========================================================
+       v1.0 - CONNECT AND FOOTER
+       ========================================================== */
+    .connect { background: var(--white); border-top: 1px solid var(--rule); text-align: left; }
+    .connect h2 { max-width: 22ch; margin-bottom: 1rem; }
+    .connect p { color: var(--muted); font-size: 1.1rem; margin-bottom: 2rem; }
+
+    .site-footer {
+      background: var(--paper);
+      border-top: 1px solid var(--rule);
+      padding: 2rem 0 calc(2rem + env(safe-area-inset-bottom, 0px));
+      font-size: 0.92rem; color: var(--muted);
+    }
+    .footer-inner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+    .site-footer p { margin: 0; }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <!-- ============================================================
+       HEADER: name and main navigation
+       ============================================================ -->
+  <header class="site-header" id="site-header">
+    <div class="wrap header-inner">
+      <a class="site-name" href="#top">Sebastian Mathew</a>
+
+      <button class="nav-toggle" id="nav-toggle" type="button"
+              aria-expanded="false" aria-controls="site-nav">
+        Menu
+      </button>
+
+      <nav class="site-nav" id="site-nav" aria-label="Main">
+        <ul class="nav-list">
+          <li><a href="#about">About</a></li>
+          <li><a href="#problems">Problems I solve</a></li>
+          <li><a href="#results">Results</a></li>
+          <li><a href="#experience">Experience</a></li>
+          <li><a href="#connect">Connect</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ============================================================
+         HERO: headline, subline, LinkedIn, connector diagram
+         ============================================================ -->
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="hero-name">Sebastian Mathew</p>
+          <h1 id="hero-title">I connect capital, institutions, and communities to make big programs work.</h1>
+          <p class="hero-sub">Strategy, finance, and enablement across continents and sectors.</p>
+          <a class="button"
+             href="https://www.linkedin.com/in/sebastianmathew"
+             target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>
+            Connect on LinkedIn
+            <span class="visually-hidden">(opens in a new tab)</span>
+          </a>
+        </div>
+
+        <!-- The connector diagram is decorative: the headline already
+             says the same thing in words, so screen readers skip the
+             lines and labels and only hear the photo description. -->
+        <div class="connector" id="connector">
+          <svg class="links" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
+            <circle class="ring" cx="200" cy="200" r="160"/>
+            <line class="line" x1="200" y1="200" x2="200" y2="40"/>
+            <line class="line" x1="200" y1="200" x2="61"  y2="280"/>
+            <line class="line" x1="200" y1="200" x2="339" y2="280"/>
+            <circle class="node" cx="200" cy="40"  r="8"/>
+            <circle class="node" cx="61"  cy="280" r="8"/>
+            <circle class="node" cx="339" cy="280" r="8"/>
+            <text class="node-label" x="200" y="20"  text-anchor="middle">Capital</text>
+            <text class="node-label" x="61"  y="312" text-anchor="middle">Institutions</text>
+            <text class="node-label" x="339" y="312" text-anchor="middle">Communities</text>
+          </svg>
+
+          <div class="portrait">
+            <span class="initials" aria-hidden="true">SM</span>
+            <img src="images/headshot.jpg"
+                 alt="Portrait of Sebastian Mathew"
+                 width="800" height="800"
+                 data-fallback="portrait">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         ABOUT: short bio with the Uganda field photo
+         ============================================================ -->
+    <section class="section about" id="about" aria-labelledby="about-title">
+      <div class="wrap about-grid">
+        <div class="about-text">
+          <h2 id="about-title">About</h2>
+          <p>I work where money, public institutions, and communities have to move together. I've raised capital for a multi-country climate program, turned around a national infrastructure agency, rebuilt how Fortune 500 sales teams talk to buyers, and trained government officials from cities and countries around the world.</p>
+          <p>My roots are in community development. I co-launched an asset-based community development network in South Africa with nonprofit leaders, government officials, and community foundations, and that way of working still shapes everything I do: start with what people already have, then build the partnerships that let it grow.</p>
+          <p>I've worked across the public, private, and nonprofit sectors, and I'm now relocating to the Washington, D.C. area.</p>
+        </div>
+
+        <figure class="field-photo">
+          <div class="frame">
+            <span class="placeholder" aria-hidden="true">Field photo: Uganda</span>
+            <img src="images/uganda.jpg"
+                 alt="Sebastian Mathew with community members during community development work in Uganda"
+                 width="1200" height="800"
+                 loading="lazy"
+                 data-fallback="field">
+          </div>
+          <figcaption>In the field: community development work in Uganda.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         PROBLEMS I SOLVE: six problem types, each with proof
+         ============================================================ -->
+    <section class="section" id="problems" aria-labelledby="problems-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="problems-title">Problems I solve</h2>
+          <p>The situations people bring me into, and what happened when they did.</p>
+        </div>
+
+        <ul class="problems-list">
+          <li class="problem">
+            <div>
+              <h3>Mobilizing capital for impact</h3>
+              <p class="when">When a large climate or development program needs a finance model that investors, foundations, and funders will back.</p>
+            </div>
+            <ul class="proof">
+              <li>Oversaw a team that built a new climate finance model and <strong>raised $250M+</strong> from asset managers, philanthropic foundations, and sovereign funds for a multi-country carbon credit program that shared value with investors and local communities.</li>
+              <li>Secured <strong>$M+ in sponsorship commitments</strong> from major tech firms for municipal wireless conferences, helping a startup bridge the digital divide in underserved inner-city communities.</li>
+            </ul>
+          </li>
+
+          <li class="problem">
+            <div>
+              <h3>Turning around struggling organizations</h3>
+              <p class="when">When revenue is falling, fixed costs are too high, or a portfolio is underperforming and the board needs a plan it can approve.</p>
+            </div>
+            <ul class="proof">
+              <li>Led 20 consultants for a national infrastructure agency in business rescue, designed its PMO, and advised the C-suite on an enterprise-wide transformation: <strong>portfolio revenue up 37%</strong> over two years.</li>
+              <li>Presented a board strategy to a national postal service that <strong>cut costs 15% without layoffs</strong>, combining flexible labor with technology.</li>
+              <li>Built a risk/return methodology for a state energy utility that led to a <strong>board-approved restructuring</strong> of its subsidiaries, with proceeds reinvested in cross-border renewable energy.</li>
+            </ul>
+          </li>
+
+          <li class="problem">
+            <div>
+              <h3>Getting teams to win high-stakes conversations</h3>
+              <p class="when">When complex, high-value offerings aren't selling through traditional methods, or a message has to land with buyers, boards, or governments.</p>
+            </div>
+            <ul class="proof">
+              <li>Developed a sales enablement strategy for Fortune 500 and PE portfolio companies, built on conversation design and AI-assisted coaching: <strong>12%+ higher win rates, 3x deal size, 17% faster close</strong>, and 25%+ faster ramp-up for new sellers.</li>
+            </ul>
+          </li>
+
+          <li class="problem">
+            <div>
+              <h3>Convening unlikely partners</h3>
+              <p class="when">When a program needs governments, multilaterals, corporations, scientists, and communities in the same room and pulling in the same direction.</p>
+            </div>
+            <ul class="proof">
+              <li>Brought together scientists, environmental leaders, research organizations, and global donors behind a nature-based program to restore landscapes and livelihoods, which became <strong>the world's largest program of its kind within five years</strong>.</li>
+              <li>Invited senior Chinese airport and civil aviation officials to the U.S. and co-designed a <strong>mega-event security preparedness exchange</strong> with the largest U.S. airport, the FAA, federal security agencies, and a major airline ahead of the Olympic Games.</li>
+            </ul>
+          </li>
+
+          <li class="problem">
+            <div>
+              <h3>Fixing slow or broken processes</h3>
+              <p class="when">When onboarding, due diligence, or operating procedures are stalling growth or driving up costs.</p>
+            </div>
+            <ul class="proof">
+              <li>Redesigned onboarding, including full AML/KYC due diligence, for a white-label digital currency exchange: <strong>60 days down to 20</strong>, putting its revenue plan back on track.</li>
+              <li>Led due diligence on a $200M presidential public-private partnership and used Monte Carlo risk analysis to <strong>negotiate 27% in savings</strong>.</li>
+            </ul>
+          </li>
+          
+                    <li class="problem">
+            <div>
+              <h3>Accelerating growth by scaling </h3>
+              <p class="when">Rapidly growing your programs to greater impact</p>
+            </div>
+            <ul class="proof">
+              <li>Scaled to become world leading program<strong> Rasied $100M+ </strong>massive-scale restoration</li>
+              <li>Multi-country impact <strong> World\s &#39s largest </strong>.</li>
+            </ul>
+          </li>
+
+          <li class="problem">
+            <div>
+              <h3>Building capability through training</h3>
+              <p class="when">When officials, executives, or teams across many places need to learn from each other and from best practice.</p>
+            </div>
+            <ul class="proof">
+              <li>Designed and directed a multi-year water management program for officials and executives from <strong>25+ mega-cities</strong>, in partnership with multilateral agencies.</li>
+              <li>Trained government officials from around the world at the <strong>United Nations Institute for Training and Research</strong>, and taught a program at the University of Pretoria.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SELECTED RESULTS: headline numbers on a dark band
+         ============================================================ -->
+    <section class="section results on-dark" id="results" aria-labelledby="results-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="results-title">Selected results</h2>
+          <p>A few numbers from the work above.</p>
+        </div>
+        <ul class="ledger">
+          <li><span class="figure">$250M+</span><span class="desc">raised for a multi-country climate finance program</span></li>
+          <li><span class="figure">37%</span><span class="desc">portfolio revenue turnaround for a national infrastructure agency</span></li>
+          <li><span class="figure">27%</span><span class="desc">negotiated savings on a $200M public-private partnership</span></li>
+          <li><span class="figure">15%</span><span class="desc">cost reduction for a national postal service, without layoffs</span></li>
+          <li><span class="figure">3x</span><span class="desc">growth in deal size from a sales enablement strategy</span></li>
+          <li><span class="figure">60 → 20</span><span class="desc">days to onboard new exchanges at a fintech platform</span></li>
+          <li><span class="figure">25+</span><span class="desc">mega-cities in a multi-year water management program</span></li>
+          <li><span class="figure">$B+</span><span class="desc">capital expenditure rollout modeled for a telecom merger</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         EXPERIENCE: organizations, teaching and speaking
+         ============================================================ -->
+    <section class="section experience" id="experience" aria-labelledby="experience-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="experience-title">Experience</h2>
+        </div>
+        <div class="experience-grid">
+          <div>
+            <h3>Organizations I've worked with</h3>
+            <ul class="org-list two-col">
+              <li>Global EverGreening Alliance</li>
+              <li>Oratium</li>
+              <li>World Vision USA</li>
+              <li>Navigant Consulting</li>
+              <li>Axum Financial</li>
+              <li>UNITAR</li>
+            </ul>
+          </div>
+          <div class="stack">
+            <div>
+              <h3>Teaching</h3>
+              <ul class="org-list small">
+                <li>University of Pretoria</li>
+                <li>United Nations Institute for Training and Research</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Presented at</h3>
+              <ul class="org-list small">
+                <li>Carnegie III conference</li>
+                <li>University of Illinois international development conference</li>
+                <li>International risk conference, New Orleans</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         CONNECT: the single call to action
+         ============================================================ -->
+    <section class="section connect" id="connect" aria-labelledby="connect-title">
+      <div class="wrap">
+        <h2 id="connect-title">Facing one of these problems? Let's talk.</h2>
+        <p>The best way to reach me is on LinkedIn.</p>
+        <a class="button"
+           href="https://www.linkedin.com/in/sebastianmathew"
+           target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>
+          Connect on LinkedIn
+          <span class="visually-hidden">(opens in a new tab)</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <p>&copy; <span id="year">2026</span> Sebastian Mathew</p>
+      <p>Washington, D.C. area</p>
+    </div>
+  </footer>
+
+  <script>
+    // ============================================================
+    // v1.0 - initial build
+    // All scripts run only in the visitor's browser. Nothing is
+    // stored, tracked, or sent anywhere.
+    // ============================================================
+
+    // Wait until the whole page has been read by the browser before
+    // running anything, so every element we look for already exists.
+    document.addEventListener('DOMContentLoaded', function () {
+
+      // ----------------------------------------------------------
+      // 1. FOOTER YEAR
+      // Puts the current year in the copyright line so it never
+      // goes out of date.
+      // ----------------------------------------------------------
+      var yearEl = document.getElementById('year');
+      if (yearEl) {
+        yearEl.textContent = new Date().getFullYear();
+      }
+
+      // ----------------------------------------------------------
+      // 2. IMAGE FALLBACKS
+      // If a photo is missing or fails to load, we hide the broken
+      // image. Behind each photo there is already a backup: the
+      // "SM" initials for the headshot, and a green panel for the
+      // Uganda photo. Hiding the broken image lets the backup show.
+      // We also check images that failed BEFORE this script ran.
+      // ----------------------------------------------------------
+      var fallbackImages = document.querySelectorAll('img[data-fallback]');
+
+      function hideBrokenImage(img) {
+        img.hidden = true;  // hides it visually and from screen readers
+        // Give the backup a spoken description in place of the photo.
+        var holder = img.parentElement;
+        var backup = holder.querySelector('.initials, .placeholder');
+        if (backup) {
+          backup.removeAttribute('aria-hidden');
+          backup.setAttribute('role', 'img');
+          backup.setAttribute('aria-label', img.alt);
+        }
+      }
+
+      fallbackImages.forEach(function (img) {
+        // Case A: the image already finished trying and failed.
+        if (img.complete && img.naturalWidth === 0) {
+          hideBrokenImage(img);
+        }
+        // Case B: the image fails later (for example, lazy loading).
+        img.addEventListener('error', function () {
+          hideBrokenImage(img);
+        });
+      });
+
+      // ----------------------------------------------------------
+      // 3. MOBILE MENU
+      // On small screens the navigation collapses behind a "Menu"
+      // button. This code opens and closes it, keeps screen readers
+      // informed (aria-expanded), closes it when a link is chosen,
+      // and lets keyboard users close it with the Escape key.
+      // ----------------------------------------------------------
+      var toggle = document.getElementById('nav-toggle');
+      var nav = document.getElementById('site-nav');
+
+      function setMenu(open) {
+        nav.classList.toggle('is-open', open);
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.textContent = open ? 'Close' : 'Menu';
+      }
+
+      toggle.addEventListener('click', function () {
+        var isOpen = toggle.getAttribute('aria-expanded') === 'true';
+        setMenu(!isOpen);
+      });
+
+      // Close the menu after a link is picked, so the page is visible.
+      nav.querySelectorAll('a').forEach(function (link) {
+        link.addEventListener('click', function () { setMenu(false); });
+      });
+
+      // Escape closes the menu and returns focus to the Menu button.
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && nav.classList.contains('is-open')) {
+          setMenu(false);
+          toggle.focus();
+        }
+      });
+
+      // ----------------------------------------------------------
+      // 4. HEADER LINE ON SCROLL
+      // Once the visitor scrolls past the top, a thin line appears
+      // under the sticky header to separate it from the content.
+      // ----------------------------------------------------------
+      var header = document.getElementById('site-header');
+      function updateHeader() {
+        header.classList.toggle('is-scrolled', window.scrollY > 8);
+      }
+      updateHeader();
+      window.addEventListener('scroll', updateHeader, { passive: true });
+
+      // ----------------------------------------------------------
+      // 5. HIGHLIGHT THE CURRENT SECTION IN THE MENU
+      // As the visitor scrolls, the menu link for the section they
+      // are reading gets underlined. aria-current tells screen
+      // readers which section is "current" too. This uses the
+      // browser's IntersectionObserver, which watches when each
+      // section enters the middle of the screen.
+      // ----------------------------------------------------------
+      var navLinks = nav.querySelectorAll('a[href^="#"]');
+      if ('IntersectionObserver' in window) {
+        var linkFor = {};
+        navLinks.forEach(function (link) {
+          linkFor[link.getAttribute('href').slice(1)] = link;
+        });
+
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            navLinks.forEach(function (l) { l.removeAttribute('aria-current'); });
+            var active = linkFor[entry.target.id];
+            if (active) active.setAttribute('aria-current', 'true');
+          });
+        }, { rootMargin: '-45% 0px -50% 0px' });  // "middle of the screen"
+
+        Object.keys(linkFor).forEach(function (id) {
+          var section = document.getElementById(id);
+          if (section) observer.observe(section);
+        });
+      }
+
+      // ----------------------------------------------------------
+      // 6. DRAW THE CONNECTOR LINES (the one animation on the page)
+      // When the page loads, the three lines grow outward from the
+      // photo to Capital, Institutions and Communities. If the
+      // visitor has asked their device to reduce motion, we skip
+      // the animation and simply show the finished diagram.
+      // ----------------------------------------------------------
+      var connector = document.getElementById('connector');
+      var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (connector && !reduceMotion) {
+        // Step 1: hide the lines (pull them back to zero length).
+        connector.classList.add('is-drawing');
+        // Step 2: on the next two animation frames, let them draw out.
+        // The double frame makes sure the browser registers step 1
+        // before step 2, otherwise the animation would be skipped.
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            connector.classList.add('is-drawn');
+            connector.classList.remove('is-drawing');
+          });
+        });
+      }
+    });
+  </script>
+</body>
+</html>
+
+
+
+

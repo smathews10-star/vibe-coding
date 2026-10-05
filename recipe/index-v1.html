@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<!--
+  Peanut Butter & Apple Sandwich — recipe card
+  v1.0 - initial build: single centered card with title, photo, ingredients, and steps
+  v1.1 - added servings and total time under the title
+  v1.2 - added finished-dish photo (finished.jpg) below the steps
+  v1.3 - added a link to notes.html at the bottom of the card
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Peanut Butter &amp; Apple Sandwich</title>
+  <meta name="description" content="A simple recipe for a peanut butter and apple sandwich.">
+
+  <!-- Fonts from Google Fonts (CDN). Fallback stacks keep the page readable if they don't load. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* v1.0 - colour tokens: apple-skin green, peanut brown, crisp apple flesh */
+    :root {
+      --page: #dfe9d0;        /* pale apple-green page */
+      --card: #fffdf6;        /* apple flesh */
+      --ink: #2b2118;         /* dark roasted brown text */
+      --muted: #6b5a49;       /* softer brown for secondary text */
+      --peanut: #a8692f;      /* peanut butter accent */
+      --apple: #4f7a28;       /* green apple accent */
+      --focus: #1f5fbf;       /* high-contrast focus ring */
+      --radius: 18px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #1d2418;
+        --card: #2a2620;
+        --ink: #f3ece0;
+        --muted: #c9b9a4;
+        --peanut: #e0a466;
+        --apple: #a5cc78;
+        --focus: #8fb8ff;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { margin: 0; height: 100%; }
+
+    body {
+      font-family: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 1.0625rem;
+      line-height: 1.55;
+      color: var(--ink);
+      background: var(--page);
+      /* Centre the card both horizontally and vertically */
+      display: grid;
+      place-items: center;
+      min-height: 100%;
+      padding: clamp(1rem, 4vw, 3rem);
+    }
+
+    /* Skip link: hidden until a keyboard user tabs to it */
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: -3rem;
+      background: var(--card);
+      color: var(--ink);
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 10;
+    }
+    .skip-link:focus { top: 1rem; }
+
+    :focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    /* The recipe card */
+    .card {
+      width: 100%;
+      max-width: 34rem;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: clamp(1.5rem, 5vw, 2.5rem);
+      /* A thick peanut-coloured top edge, like the crust of a slice */
+      border-top: 10px solid var(--peanut);
+      box-shadow: 0 18px 40px -24px rgba(43, 33, 24, 0.45);
+    }
+
+    h1 {
+      font-family: "Young Serif", Georgia, "Times New Roman", serif;
+      font-weight: 400;
+      font-size: clamp(1.75rem, 6vw, 2.4rem);
+      line-height: 1.15;
+      margin: 0 0 1.25rem;
+      text-align: center;
+      text-wrap: balance;
+    }
+
+    /* v1.1 - serves/time line: sits snugly under the title, centred */
+    .meta {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.75rem;
+      margin: -0.6rem 0 1.5rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .meta div { display: flex; gap: 0.4rem; }
+    .meta dt { font-weight: 600; color: var(--peanut); }
+    .meta dt::after { content: ":"; }
+    .meta dd { margin: 0; }
+
+    /* Photo: capped at a few hundred pixels and centred */
+    figure {
+      margin: 0 auto 1.75rem;
+      width: 100%;
+      max-width: 320px;
+    }
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      border-radius: 12px;
+      background: var(--page);
+    }
+    /* v1.2 - the finished-dish photo sits below the steps, so its space goes above it */
+    figure.photo-finished { margin: 1.75rem auto 0; }
+
+    /* Shown only if a photo can't be found (see JavaScript below) */
+    .photo-missing {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 4 / 3;
+      border-radius: 12px;
+      border: 2px dashed var(--muted);
+      color: var(--muted);
+      font-size: 0.95rem;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    h2 {
+      font-family: "Young Serif", Georgia, serif;
+      font-weight: 400;
+      font-size: 1.35rem;
+      margin: 0 0 0.6rem;
+      color: var(--apple);
+    }
+
+    section + section { margin-top: 1.75rem; }
+
+    ul, ol {
+      margin: 0;
+      padding-left: 1.4rem;
+    }
+    li { margin-bottom: 0.4rem; }
+    li::marker { color: var(--peanut); font-weight: 600; }
+
+    /* v1.3 - link between the recipe and notes pages */
+    .page-link {
+      margin-top: 1.75rem;
+      text-align: center;
+    }
+    .page-link a {
+      color: var(--apple);
+      font-weight: 600;
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+    .page-link a:hover { color: var(--peanut); }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <a class="skip-link" href="#recipe">Skip to recipe</a>
+
+  <main id="recipe" tabindex="-1">
+    <article class="card" aria-labelledby="recipe-title">
+
+      <h1 id="recipe-title">Peanut Butter &amp; Apple Sandwich</h1>
+
+      <!-- v1.1 - servings and total time -->
+      <dl class="meta" aria-label="Recipe details">
+        <div>
+          <dt>Serves</dt>
+          <dd>1</dd>
+        </div>
+        <div>
+          <dt>Time</dt>
+          <dd><time datetime="PT5M">5 minutes</time></dd>
+        </div>
+      </dl>
+
+      <figure id="photo-frame">
+        <img
+          id="recipe-photo"
+          src="photo.jpg"
+          alt="A peanut butter and apple sandwich cut in half, showing thin apple slices layered inside"
+          width="320"
+          height="240"
+          loading="eager">
+      </figure>
+
+      <section aria-labelledby="ingredients-heading">
+        <h2 id="ingredients-heading">Ingredients</h2>
+        <ul>
+          <li>2 slices of bread (whole wheat works well)</li>
+          <li>2 tablespoons peanut butter, smooth or crunchy</li>
+          <li>½ crisp apple, such as Honeycrisp or Granny Smith</li>
+          <li>1 teaspoon honey (optional)</li>
+          <li>A pinch of cinnamon (optional)</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="steps-heading">
+        <h2 id="steps-heading">Steps</h2>
+        <ol>
+          <li>Toast the bread lightly if you like a little crunch.</li>
+          <li>Core the apple half and cut it into thin slices.</li>
+          <li>Spread the peanut butter evenly over one side of each slice of bread.</li>
+          <li>Layer the apple slices over one peanut-buttered slice.</li>
+          <li>Drizzle with honey and sprinkle with cinnamon, if using.</li>
+          <li>Top with the second slice, peanut butter side down, press gently, and cut in half.</li>
+        </ol>
+      </section>
+
+      <!-- v1.2 - photo of the finished dish -->
+      <figure class="photo-finished">
+        <img
+          src="finished.jpg"
+          alt="The finished peanut butter and apple sandwich, cut in half and ready to eat"
+          width="320"
+          height="240"
+          loading="lazy">
+      </figure>
+
+      <!-- v1.3 - link to the notes page -->
+      <nav class="page-link" aria-label="More about this recipe">
+        <a href="notes.html">W
+        
+        hy my sandwich is so special</a>
+      </nav>
+
+    </article>
+  </main>
+
+  <script>
+    // v1.0 - initial build
+    // v1.1 - no script changes (servings and time line is HTML and CSS only)
+    // v1.2 - photo fallback now covers both photos
+    // v1.3 - no script changes (notes link is HTML and CSS only)
+
+    /*
+      PHOTO FALLBACK
+      v1.2 - now works for every photo on the card, not just the first one.
+      The page expects "photo.jpg" (top) and "finished.jpg" (bottom) in the
+      same folder. If either file is missing or can't load, the browser would
+      normally show a broken-image icon. Instead, this code swaps in a tidy
+      dashed box that names the missing file, so the card still looks finished
+      and screen readers still hear a description of what the photo would show.
+      Nothing is sent anywhere — this only runs inside your browser.
+    */
+    (function setUpPhotoFallback() {
+      // Find every photo that sits inside a figure on the card
+      var photos = document.querySelectorAll('.card figure img');
+
+      photos.forEach(function (photo) {
+        // Work out the file name the photo is looking for (e.g. "finished.jpg")
+        var fileName = photo.getAttribute('src');
+
+        // Build the replacement box and put it where the photo was
+        function showFallback() {
+          var box = document.createElement('div');
+          box.className = 'photo-missing';
+          box.setAttribute('role', 'img');
+          box.setAttribute('aria-label', photo.alt);
+          box.textContent = 'Add ' + fileName + ' to this folder to show the photo here.';
+          photo.parentNode.replaceChild(box, photo);
+        }
+
+        // If the image has already failed by the time this runs
+        // (it can happen with a fast local file check), handle it right away
+        if (photo.complete && photo.naturalWidth === 0) {
+          showFallback();
+          return;
+        }
+
+        // Otherwise, wait and react only if loading fails
+        photo.addEventListener('error', showFallback, { once: true });
+      });
+    })();
+
+    /*
+      SKIP LINK FOCUS
+      When a keyboard user activates "Skip to recipe", move focus onto the
+      recipe itself so the next Tab press continues from there.
+    */
+    (function setUpSkipLink() {
+      var link = document.querySelector('.skip-link');
+      var target = document.getElementById('recipe');
+      if (!link || !target) return;
+
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        target.focus();
+      });
+    })();
+  </script>
+</body>
+</html>

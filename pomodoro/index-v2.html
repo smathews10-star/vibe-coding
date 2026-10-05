@@ -1,0 +1,426 @@
+<!-- v2.0 - added automatic work/break cycle: 25 min work, 5 min break,
+     with a phase label and a page-background color change so it's easy
+     to tell at a glance which phase is currently running -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work / Break Timer</title>
+<style>
+  /* Reset default spacing so the layout is predictable across browsers */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Full-height, centered layout that adapts to light/dark system preference */
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f4f4f5;
+    color: #1a1a1a;
+    padding: 1.5rem;
+    /* Smoothly fade the background color when the phase switches, rather
+       than an abrupt jump, so the change reads as a transition rather
+       than a flicker. */
+    transition: background-color 0.6s ease;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: #18181b;
+      color: #f4f4f5;
+    }
+  }
+
+  /* Work phase: cool blue tint. Break phase: warm green tint. These are
+     applied as classes on <body> from JavaScript so the whole page,
+     not just the timer card, signals which phase is active. */
+  body.phase-work {
+    background: #eaf1fb;
+  }
+
+  body.phase-break {
+    background: #eafbf1;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body.phase-work {
+      background: #0f2033;
+    }
+    body.phase-break {
+      background: #0f3322;
+    }
+  }
+
+  /* The label that announces which phase ("Work" / "Break") is running */
+  .phase-label {
+    font-size: clamp(1.1rem, 4vw, 1.5rem);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+
+  .phase-label.phase-work {
+    color: #2563eb;
+  }
+
+  .phase-label.phase-break {
+    color: #16a34a;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .phase-label.phase-work {
+      color: #7fb1ff;
+    }
+    .phase-label.phase-break {
+      color: #6fe0a3;
+    }
+  }
+
+  .timer-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  /* The big countdown display - sized with vw units so it scales with
+     the viewport but is capped so it never gets absurdly huge on large
+     screens or too small on tiny ones */
+  .display {
+    font-variant-numeric: tabular-nums; /* keeps digit widths consistent so the display doesn't jitter */
+    font-size: clamp(4rem, 22vw, 12rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    text-align: center;
+    width: 100%;
+  }
+
+  .controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  button {
+    font-size: 1.25rem;
+    font-weight: 600;
+    padding: 0.9rem 2rem;
+    border-radius: 0.75rem;
+    border: 2px solid currentColor;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    min-width: 130px;
+    transition: transform 0.08s ease, background-color 0.15s ease;
+  }
+
+  button:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  button:active {
+    transform: scale(0.97);
+  }
+
+  button:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 3px;
+  }
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Primary "Start" button gets a filled treatment so it stands out */
+  #startBtn {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: #ffffff;
+  }
+
+  #startBtn:hover {
+    background: #15803d;
+  }
+
+  #startBtn:disabled {
+    background: #16a34a;
+    opacity: 0.4;
+  }
+
+  /* Screen-reader-only text: visible to assistive tech, invisible on screen */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Small screens: stack buttons vertically and let them fill the width */
+  @media (max-width: 420px) {
+    .controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    button {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <main class="timer-card">
+    <!-- Announces which phase (work or break) is currently active. Marked
+         aria-live so screen reader users hear it change automatically
+         when one phase hands off to the next. -->
+    <div id="phaseLabel" class="phase-label phase-work" aria-live="polite">Work</div>
+
+    <!-- role="timer" + aria-live tells screen readers this region updates
+         and should be announced periodically, without interrupting the user
+         on every single second -->
+    <div
+      id="display"
+      class="display"
+      role="timer"
+      aria-live="off"
+      aria-atomic="true"
+    >25:00</div>
+    <span id="statusText" class="sr-only" aria-live="polite"></span>
+
+    <div class="controls">
+      <button id="startBtn" type="button">Start</button>
+      <button id="pauseBtn" type="button" disabled>Pause</button>
+      <button id="resetBtn" type="button">Reset</button>
+    </div>
+  </main>
+
+<script>
+  // v2.0 - added automatic work/break cycle
+  // -----------------------------------------------------------------------
+  // This is a countdown timer that automatically alternates between a
+  // "work" phase and a "break" phase. It works by:
+  //   1. Storing the total time remaining in seconds (not minutes/seconds
+  //      separately) - this makes the countdown math much simpler.
+  //   2. Tracking which phase ("work" or "break") is currently active.
+  //   3. Using setInterval() to subtract one second at a time.
+  //   4. Re-rendering the MM:SS display every time the seconds change.
+  //   5. When the countdown hits zero, flipping to the other phase,
+  //      loading that phase's duration, and immediately starting it again
+  //      - so work leads into break, and break leads back into work,
+  //      without the user having to press Start each time.
+  //
+  // No external libraries are used - this is plain "vanilla" JavaScript.
+  // -----------------------------------------------------------------------
+
+  // How long each phase lasts, in total seconds.
+  const WORK_SECONDS = 25 * 60;
+  const BREAK_SECONDS = 5 * 60;
+
+  // Which phase is currently active: either the string 'work' or 'break'.
+  // This drives the label text, the page background color, and which
+  // duration gets loaded when a phase finishes.
+  let currentPhase = 'work';
+
+  // This variable tracks how many seconds are left on the clock right now.
+  // It changes every second while the timer is running.
+  let secondsRemaining = WORK_SECONDS;
+
+  // This holds the ID returned by setInterval(), so we can cancel
+  // (clear) the interval later when the user pauses. It's `null`
+  // whenever the timer is NOT actively running.
+  let intervalId = null;
+
+  // Grab references to the HTML elements we need to read from or update.
+  // Doing this once up front (rather than re-searching the page every
+  // time) is more efficient.
+  const displayEl = document.getElementById('display');
+  const statusTextEl = document.getElementById('statusText');
+  const phaseLabelEl = document.getElementById('phaseLabel');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  // -----------------------------------------------------------------------
+  // formatTime(totalSeconds)
+  // Converts a raw number of seconds (e.g. 125) into a "MM:SS" style
+  // string (e.g. "02:05"). padStart() adds a leading zero if needed so
+  // the display always shows two digits for both minutes and seconds.
+  // -----------------------------------------------------------------------
+  function formatTime(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const minutesStr = String(minutes).padStart(2, '0');
+    const secondsStr = String(seconds).padStart(2, '0');
+    return minutesStr + ':' + secondsStr;
+  }
+
+  // -----------------------------------------------------------------------
+  // updateDisplay()
+  // Pushes the current value of secondsRemaining onto the screen.
+  // -----------------------------------------------------------------------
+  function updateDisplay() {
+    displayEl.textContent = formatTime(secondsRemaining);
+  }
+
+  // -----------------------------------------------------------------------
+  // applyPhaseAppearance()
+  // Updates everything that visually signals which phase is active right
+  // now: the <body> background color class and the text/color of the
+  // phase label. Called whenever the phase changes.
+  // -----------------------------------------------------------------------
+  function applyPhaseAppearance() {
+    // Remove both phase classes first, then add back only the one that
+    // matches the current phase - this avoids ever having both (or
+    // neither) applied at once.
+    document.body.classList.remove('phase-work', 'phase-break');
+    document.body.classList.add('phase-' + currentPhase);
+
+    phaseLabelEl.classList.remove('phase-work', 'phase-break');
+    phaseLabelEl.classList.add('phase-' + currentPhase);
+
+    phaseLabelEl.textContent = currentPhase === 'work' ? 'Work' : 'Break';
+  }
+
+  // -----------------------------------------------------------------------
+  // switchPhase()
+  // Called when a countdown reaches zero. Flips currentPhase to the
+  // other phase, loads that phase's full duration, updates the on-screen
+  // color/label, and immediately starts counting down again - this is
+  // what makes work automatically lead into break and back again.
+  // -----------------------------------------------------------------------
+  function switchPhase() {
+    currentPhase = (currentPhase === 'work') ? 'break' : 'work';
+    secondsRemaining = (currentPhase === 'work') ? WORK_SECONDS : BREAK_SECONDS;
+
+    applyPhaseAppearance();
+    updateDisplay();
+
+    statusTextEl.textContent = currentPhase === 'work'
+      ? 'Break finished. Work timer started.'
+      : 'Work finished. Break timer started.';
+  }
+
+  // -----------------------------------------------------------------------
+  // tick()
+  // Called once per second while the timer is running. Counts down by
+  // one second. When it reaches zero, hands off to the other phase and
+  // keeps running rather than stopping.
+  // -----------------------------------------------------------------------
+  function tick() {
+    secondsRemaining -= 1;
+
+    if (secondsRemaining <= 0) {
+      switchPhase();
+    } else {
+      updateDisplay();
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // stopInterval()
+  // Small helper that clears the running interval (if any) and resets
+  // intervalId back to null so the rest of the code knows the timer
+  // is not currently ticking.
+  // -----------------------------------------------------------------------
+  function stopInterval() {
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // startTimer()
+  // Runs when the Start button is clicked. Does nothing if the timer is
+  // already running or has already reached zero (Reset must be used
+  // first in that case). Otherwise kicks off a 1-second repeating timer.
+  // -----------------------------------------------------------------------
+  function startTimer() {
+    // Guard: don't start a second interval on top of an existing one.
+    if (intervalId !== null) {
+      return;
+    }
+
+    intervalId = setInterval(tick, 1000);
+
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    statusTextEl.textContent = (currentPhase === 'work' ? 'Work' : 'Break') + ' timer started.';
+  }
+
+  // -----------------------------------------------------------------------
+  // pauseTimer()
+  // Runs when the Pause button is clicked. Simply stops the interval
+  // without changing secondsRemaining, so the user can resume later
+  // from exactly where they left off.
+  // -----------------------------------------------------------------------
+  function pauseTimer() {
+    stopInterval();
+
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    statusTextEl.textContent = 'Timer paused.';
+  }
+
+  // -----------------------------------------------------------------------
+  // resetTimer()
+  // Runs when the Reset button is clicked. Stops any running countdown
+  // and restores secondsRemaining back to the full 25 minutes, then
+  // redraws the display and re-enables the Start button.
+  // -----------------------------------------------------------------------
+  function resetTimer() {
+    stopInterval();
+
+    currentPhase = 'work';
+    secondsRemaining = WORK_SECONDS;
+    applyPhaseAppearance();
+    updateDisplay();
+
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    statusTextEl.textContent = 'Timer reset. Work phase, 25 minutes.';
+  }
+
+  // -----------------------------------------------------------------------
+  // Wire up the buttons to their corresponding functions, and draw the
+  // initial "25:00" display as soon as the page loads.
+  // -----------------------------------------------------------------------
+  startBtn.addEventListener('click', startTimer);
+  pauseBtn.addEventListener('click', pauseTimer);
+  resetBtn.addEventListener('click', resetTimer);
+
+  applyPhaseAppearance();
+  updateDisplay();
+</script>
+
+</body>
+</html>

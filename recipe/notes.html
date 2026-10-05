@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<!--
+  Peanut Butter & Apple Sandwich — recipe notes
+  v1.0 - initial build: single centered card with a few paragraphs of notes and a link back to the recipe
+  v1.1 - added a row of links to both pages at the top
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notes: Peanut Butter &amp; Apple Sandwich</title>
+  <meta name="description" content="Notes, tips, and variations for the peanut butter and apple sandwich.">
+
+  <!-- Fonts from Google Fonts (CDN). Fallback stacks keep the page readable if they don't load. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* v1.0 - colour tokens: same as the recipe page so the two match */
+    :root {
+      --page: #dfe9d0;        /* pale apple-green page */
+      --card: #fffdf6;        /* apple flesh */
+      --ink: #2b2118;         /* dark roasted brown text */
+      --muted: #6b5a49;       /* softer brown for secondary text */
+      --peanut: #a8692f;      /* peanut butter accent */
+      --apple: #4f7a28;       /* green apple accent */
+      --focus: #1f5fbf;       /* high-contrast focus ring */
+      --radius: 18px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #1d2418;
+        --card: #2a2620;
+        --ink: #f3ece0;
+        --muted: #c9b9a4;
+        --peanut: #e0a466;
+        --apple: #a5cc78;
+        --focus: #8fb8ff;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { margin: 0; height: 100%; }
+
+    body {
+      font-family: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 1.0625rem;
+      line-height: 1.55;
+      color: var(--ink);
+      background: var(--page);
+      /* Centre the card both horizontally and vertically */
+      display: grid;
+      place-items: center;
+      min-height: 100%;
+      padding: clamp(1rem, 4vw, 3rem);
+    }
+
+    /* Skip link: hidden until a keyboard user tabs to it */
+    .skip-link {
+      position: absolute;
+      left: 1rem;
+      top: -3rem;
+      background: var(--card);
+      color: var(--ink);
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 10;
+    }
+    .skip-link:focus { top: 1rem; }
+
+    :focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    /* The notes card — same shape as the recipe card */
+    .card {
+      width: 100%;
+      max-width: 34rem;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: clamp(1.5rem, 5vw, 2.5rem);
+      /* A thick peanut-coloured top edge, like the crust of a slice */
+      border-top: 10px solid var(--peanut);
+      box-shadow: 0 18px 40px -24px rgba(43, 33, 24, 0.45);
+    }
+
+    h1 {
+      font-family: "Young Serif", Georgia, "Times New Roman", serif;
+      font-weight: 400;
+      font-size: clamp(1.75rem, 6vw, 2.4rem);
+      line-height: 1.15;
+      margin: 0 0 1.25rem;
+      text-align: center;
+      text-wrap: balance;
+    }
+
+    /* Room for a few paragraphs of notes */
+    .notes p {
+      margin: 0 0 1.1rem;
+    }
+    .notes p:last-child { margin-bottom: 0; }
+
+    /* Link between the recipe and notes pages */
+    .page-link {
+      margin-top: 1.75rem;
+      text-align: center;
+    }
+    .page-link a {
+      color: var(--apple);
+      font-weight: 600;
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+    .page-link a:hover { color: var(--peanut); }
+
+    /* v1.1 - small row of links at the top of every page */
+    .top-nav {
+      margin: 0 0 1rem;
+    }
+    .top-nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      font-size: 0.95rem;
+    }
+    .top-nav li { margin: 0; }
+    .top-nav a {
+      color: var(--ink);
+      font-weight: 600;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
+    }
+    .top-nav a:hover { color: var(--peanut); }
+    /* The page you're on is shown in green without an underline */
+    .top-nav a[aria-current="page"] {
+      color: var(--apple);
+      text-decoration: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <a class="skip-link" href="#notes">Skip to notes</a>
+
+  <main id="notes" tabindex="-1">
+
+    <!-- v1.1 - links to both pages -->
+    <nav class="top-nav" aria-label="Pages">
+      <ul>
+        <li><a href="index.html">Recipe</a></li>
+        <li><a href="notes.html" aria-current="page">Notes</a></li>
+      </ul>
+    </nav>
+
+    <article class="card" aria-labelledby="notes-title">
+
+      <h1 id="notes-title">Notes on the Peanut Butter &amp; Apple Sandwich</h1>
+
+      <!-- Replace or add paragraphs here — the card grows to fit -->
+      <div class="notes">
+        <p>
+          The apple is what makes this sandwich. A crisp, firm variety like
+          Honeycrisp or Granny Smith holds its crunch against the soft peanut
+          butter, while softer apples can turn mealy. Tart apples balance the
+          richness; sweeter ones pair nicely with a little honey.
+        </p>
+        <p>
+          Slice the apple as thinly as you can so the sandwich stays easy to
+          bite. If you're packing it for later, toss the slices with a few drops
+          of lemon juice first to keep them from browning, and spread the peanut
+          butter right to the edges of the bread so it acts as a barrier against
+          sogginess.
+        </p>
+        <p>
+          It's an easy recipe to change up. Try almond or sunflower seed butter
+          instead of peanut butter, swap the bread for a tortilla and roll it up,
+          or add a sprinkle of granola for extra crunch.
+        </p>
+      </div>
+
+      <nav class="page-link" aria-label="Back to the recipe">
+        <a href="index.html">Back to the recipe</a>
+      </nav>
+
+    </article>
+  </main>
+
+  <script>
+    // v1.0 - initial build
+    // v1.1 - no script changes (top links are HTML and CSS only)
+
+    /*
+      SKIP LINK FOCUS
+      When a keyboard user activates "Skip to notes", move focus onto the
+      notes card itself so the next Tab press continues from there.
+      Nothing is sent anywhere — this only runs inside your browser.
+    */
+    (function setUpSkipLink() {
+      var link = document.querySelector('.skip-link');
+      var target = document.getElementById('notes');
+      if (!link || !target) return;
+
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        target.focus();
+      });
+    })();
+  </script>
+</body>
+</html>

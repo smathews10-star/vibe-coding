@@ -1,0 +1,332 @@
+<!-- v1.0 - initial build: 25-minute countdown timer with start/pause/reset -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sebastians 25 Minute Pomodoro Timer</title>
+<style>
+  /* Reset default spacing so the layout is predictable across browsers */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Full-height, centered layout that adapts to light/dark system preference */
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f4f4f5;
+    color: #1a1a1a;
+    padding: 1.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: #18181b;
+      color: #f4f4f5;
+    }
+  }
+
+  .timer-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  /* The big countdown display - sized with vw units so it scales with
+     the viewport but is capped so it never gets absurdly huge on large
+     screens or too small on tiny ones */
+  .display {
+    font-variant-numeric: tabular-nums; /* keeps digit widths consistent so the display doesn't jitter */
+    font-size: clamp(4rem, 22vw, 12rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    text-align: center;
+    width: 100%;
+  }
+
+  /* Visually indicate when the timer has run out */
+  .display.finished {
+    color: #dc2626;
+  }
+
+  .controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  button {
+    font-size: 1.25rem;
+    font-weight: 600;
+    padding: 0.9rem 2rem;
+    border-radius: 0.75rem;
+    border: 2px solid currentColor;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    min-width: 130px;
+    transition: transform 0.08s ease, background-color 0.15s ease;
+  }
+
+  button:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  button:active {
+    transform: scale(0.97);
+  }
+
+  button:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 3px;
+  }
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Primary "Start" button gets a filled treatment so it stands out */
+  #startBtn {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: #ffffff;
+  }
+
+  #startBtn:hover {
+    background: #15803d;
+  }
+
+  #startBtn:disabled {
+    background: #16a34a;
+    opacity: 0.4;
+  }
+
+  /* Screen-reader-only text: visible to assistive tech, invisible on screen */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Small screens: stack buttons vertically and let them fill the width */
+  @media (max-width: 420px) {
+    .controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    button {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <main class="timer-card">
+    <!-- role="timer" + aria-live tells screen readers this region updates
+         and should be announced periodically, without interrupting the user
+         on every single second -->
+    <div
+      id="display"
+      class="display"
+      role="timer"
+      aria-live="off"
+      aria-atomic="true"
+    >25:00</div>
+    <span id="statusText" class="sr-only" aria-live="polite"></span>
+
+    <div class="controls">
+      <button id="startBtn" type="button">Start</button>
+      <button id="pauseBtn" type="button" disabled>Pause</button>
+      <button id="resetBtn" type="button">Reset</button>
+    </div>
+  </main>
+
+<script>
+  // v1.0 - initial build
+  // -----------------------------------------------------------------------
+  // This is a simple countdown timer. It works by:
+  //   1. Storing the total time remaining in seconds (not minutes/seconds
+  //      separately) - this makes the countdown math much simpler.
+  //   2. Using setInterval() to subtract one second at a time.
+  //   3. Re-rendering the MM:SS display every time the seconds change.
+  //
+  // No external libraries are used - this is plain "vanilla" JavaScript.
+  // -----------------------------------------------------------------------
+
+  // How long the timer runs for, in total seconds (25 minutes * 60).
+  const START_SECONDS = 25 * 60;
+
+  // This variable tracks how many seconds are left on the clock right now.
+  // It changes every second while the timer is running.
+  let secondsRemaining = START_SECONDS;
+
+  // This holds the ID returned by setInterval(), so we can cancel
+  // (clear) the interval later when the user pauses or the timer finishes.
+  // It's `null` whenever the timer is NOT actively running.
+  let intervalId = null;
+
+  // Grab references to the HTML elements we need to read from or update.
+  // Doing this once up front (rather than re-searching the page every
+  // time) is more efficient.
+  const displayEl = document.getElementById('display');
+  const statusTextEl = document.getElementById('statusText');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  // -----------------------------------------------------------------------
+  // formatTime(totalSeconds)
+  // Converts a raw number of seconds (e.g. 125) into a "MM:SS" style
+  // string (e.g. "02:05"). padStart() adds a leading zero if needed so
+  // the display always shows two digits for both minutes and seconds.
+  // -----------------------------------------------------------------------
+  function formatTime(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const minutesStr = String(minutes).padStart(2, '0');
+    const secondsStr = String(seconds).padStart(2, '0');
+    return minutesStr + ':' + secondsStr;
+  }
+
+  // -----------------------------------------------------------------------
+  // updateDisplay()
+  // Pushes the current value of secondsRemaining onto the screen, and
+  // keeps the visual "finished" (red) state and the screen-reader status
+  // text in sync with what's actually happening.
+  // -----------------------------------------------------------------------
+  function updateDisplay() {
+    displayEl.textContent = formatTime(secondsRemaining);
+
+    if (secondsRemaining <= 0) {
+      displayEl.classList.add('finished');
+    } else {
+      displayEl.classList.remove('finished');
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // tick()
+  // Called once per second while the timer is running. Counts down by
+  // one second and stops itself automatically when it reaches zero.
+  // -----------------------------------------------------------------------
+  function tick() {
+    secondsRemaining -= 1;
+    updateDisplay();
+
+    if (secondsRemaining <= 0) {
+      // Time's up - stop the interval and reset the buttons so the user
+      // could start a fresh countdown again if they want to.
+      stopInterval();
+      startBtn.disabled = true;
+      pauseBtn.disabled = true;
+      statusTextEl.textContent = 'Time is up.';
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // stopInterval()
+  // Small helper that clears the running interval (if any) and resets
+  // intervalId back to null so the rest of the code knows the timer
+  // is not currently ticking.
+  // -----------------------------------------------------------------------
+  function stopInterval() {
+    if (intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // startTimer()
+  // Runs when the Start button is clicked. Does nothing if the timer is
+  // already running or has already reached zero (Reset must be used
+  // first in that case). Otherwise kicks off a 1-second repeating timer.
+  // -----------------------------------------------------------------------
+  function startTimer() {
+    // Guard: don't start a second interval on top of an existing one,
+    // and don't start counting down from zero.
+    if (intervalId !== null || secondsRemaining <= 0) {
+      return;
+    }
+
+    intervalId = setInterval(tick, 1000);
+
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    statusTextEl.textContent = 'Timer started.';
+  }
+
+  // -----------------------------------------------------------------------
+  // pauseTimer()
+  // Runs when the Pause button is clicked. Simply stops the interval
+  // without changing secondsRemaining, so the user can resume later
+  // from exactly where they left off.
+  // -----------------------------------------------------------------------
+  function pauseTimer() {
+    stopInterval();
+
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    statusTextEl.textContent = 'Timer paused.';
+  }
+
+  // -----------------------------------------------------------------------
+  // resetTimer()
+  // Runs when the Reset button is clicked. Stops any running countdown
+  // and restores secondsRemaining back to the full 25 minutes, then
+  // redraws the display and re-enables the Start button.
+  // -----------------------------------------------------------------------
+  function resetTimer() {
+    stopInterval();
+
+    secondsRemaining = START_SECONDS;
+    updateDisplay();
+
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    statusTextEl.textContent = 'Timer reset to 25 minutes.';
+  }
+
+  // -----------------------------------------------------------------------
+  // Wire up the buttons to their corresponding functions, and draw the
+  // initial "25:00" display as soon as the page loads.
+  // -----------------------------------------------------------------------
+  startBtn.addEventListener('click', startTimer);
+  pauseBtn.addEventListener('click', pauseTimer);
+  resetBtn.addEventListener('click', resetTimer);
+
+  updateDisplay();
+</script>
+
+</body>
+</html>
