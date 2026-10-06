@@ -4,6 +4,9 @@
   v1.0 - initial build: 7-scene story, visual-novel layout (portrait over background,
          nameplate, dialogue box), typewriter text, keyboard and screen-reader support,
          Play again on every ending. Runs entirely in the browser; nothing is sent anywhere.
+  v1.1 - Baddie's portrait redrawn to look bumbling rather than scary
+  v1.2 - Baddie redrawn as an original space warlord instead of a devil
+  v1.3 - Baddie redrawn as a sillier, human-looking villain
 -->
 <html lang="en">
 <head>
@@ -371,19 +374,35 @@ const PORTRAIT_CLOSE = '</g></svg>';
 const CHARACTERS = {
   baddie: {
     name: "Baddie",
+    // v1.3 - redrawn as a silly human villain: round face, big ears, a three-hair comb-over,
+    //        a lopsided toy crown, a too-small eye mask, a giant curly moustache,
+    //        a gap-toothed grin and a floppy oversized cape over a "B" sweater
     art: PORTRAIT_OPEN + `
-      <path d="M22 300 L36 168 Q100 128 164 168 L178 300Z" fill="#3B1C32"/>
-      <path d="M44 200 L30 120 L78 176Z M156 200 L170 120 L122 176Z" fill="#D7263D"/>
-      <path d="M40 300 Q42 214 72 202 L128 202 Q158 214 160 300Z" fill="#4A1942"/>
-      <path d="M100 228 L116 250 L100 274 L84 250Z" fill="#FF5D8F"/>
-      <rect x="86" y="168" width="28" height="36" fill="#A93226"/>
-      <path d="M68 92 Q48 70 56 40 Q66 62 82 80Z M132 92 Q152 70 144 40 Q134 62 118 80Z" fill="#FFF6D6"/>
-      <ellipse cx="100" cy="126" rx="38" ry="48" fill="#C0392B"/>
-      <path d="M72 102 L92 112 M128 102 L108 112" stroke-width="5"/>
-      <ellipse cx="100" cy="124" rx="17" ry="13" fill="#FFC93C"/>
-      <rect x="97" y="114" width="6" height="20" rx="3" fill="#231942" stroke="none"/>
-      <path d="M76 150 Q100 174 124 150Z" fill="#FFF6D6"/>
-      <path d="M80 152 L86 160 L92 154 L98 162 L104 154 L110 162 L116 154 L121 158" fill="none" stroke-width="2.5"/>
+      <path d="M14 300 L24 188 Q100 160 176 188 L186 300Z" fill="#6B4C9A"/>
+      <path d="M50 196 L34 150 L82 182Z M150 196 L166 150 L118 182Z" fill="#8E5DB0"/>
+      <path d="M40 300 Q42 218 72 206 L128 206 Q158 218 160 300Z" fill="#2E8B57"/>
+      <path d="M86 236 L86 276 L104 276 Q118 276 118 266 Q118 256 106 256 Q116 256 116 246 Q116 236 104 236Z M94 244 L94 252 L102 252 Q108 252 108 248 Q108 244 102 244Z M94 260 L94 268 L104 268 Q110 268 110 264 Q110 260 104 260Z" fill="#FFC93C" fill-rule="evenodd" stroke-width="3"/>
+      <rect x="86" y="172" width="28" height="36" fill="#E3AE84"/>
+      <ellipse cx="52" cy="132" rx="10" ry="15" fill="#F2C29B"/>
+      <ellipse cx="148" cy="132" rx="10" ry="15" fill="#F2C29B"/>
+      <ellipse cx="100" cy="128" rx="46" ry="52" fill="#F2C29B"/>
+      <path d="M62 96 Q90 62 132 78 M66 92 Q96 66 136 86 M70 88 Q100 72 138 94" fill="none" stroke="#6B3E1F" stroke-width="3.5"/>
+      <g transform="rotate(-14 104 66)">
+        <path d="M74 74 L76 46 L90 62 L104 40 L118 62 L132 46 L134 74Z" fill="#FFC93C"/>
+        <circle cx="104" cy="66" r="4" fill="#D7263D" stroke-width="2.5"/>
+      </g>
+      <path d="M72 116 Q100 108 128 116 L126 132 Q100 126 74 132Z" fill="#231942"/>
+      <circle cx="87" cy="122" r="5" fill="#FFFFFF" stroke-width="2"/>
+      <circle cx="113" cy="122" r="5" fill="#FFFFFF" stroke-width="2"/>
+      <circle cx="88" cy="123" r="2" fill="#231942" stroke="none"/>
+      <circle cx="112" cy="121" r="2" fill="#231942" stroke="none"/>
+      <path d="M72 108 Q86 100 96 110 M104 108 Q116 98 128 106" fill="none" stroke="#6B3E1F" stroke-width="5"/>
+      <ellipse cx="100" cy="142" rx="10" ry="8" fill="#E89C78"/>
+      <path d="M100 152 Q84 146 72 156 Q60 166 66 172 Q72 160 84 162 Q94 162 100 156 Q106 162 116 162 Q128 160 134 172 Q140 166 128 156 Q116 146 100 152Z" fill="#4A2A12" stroke-width="3"/>
+      <path d="M82 168 Q100 186 118 168Z" fill="#FFFFFF" stroke-width="3"/>
+      <path d="M100 168 L100 176" stroke-width="2.5"/>
+      <circle cx="70" cy="146" r="6" fill="#F59C8C" stroke="none" opacity=".7"/>
+      <circle cx="130" cy="146" r="6" fill="#F59C8C" stroke="none" opacity=".7"/>
     ` + PORTRAIT_CLOSE
   },
   captain: {
