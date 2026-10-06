@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<!--
+  Vibe Coding Party — invitation page
+  v1.0 - initial build: personalized greeting from ?to=Name, big date/time,
+         local-time conversion, add-to-calendar (.ics), personal link maker.
+  Everything runs in the browser. Nothing is sent to any server.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>You're invited — Vibe Coding Party</title>
+  <meta name="description" content="A virtual vibe coding party. Tuesday, October 13, 10:00 AM Eastern.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪩</text></svg>">
+
+  <!-- Fonts: Bricolage Grotesque, one family used for everything (display + body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ---------- Design tokens ---------- */
+    :root {
+      --plum: #2B1740;       /* night background */
+      --violet: #5B2A86;     /* lava blob */
+      --coral: #FF6B5A;      /* lava blob + buttons */
+      --sun: #FFC857;        /* warm highlight */
+      --mint: #7FE0C3;       /* cool highlight, focus ring */
+      --cream: #FFF4E6;      /* text */
+      --cream-soft: rgba(255, 244, 230, 0.78);
+
+      --font: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      background: var(--plum);
+      color-scheme: dark;
+    }
+    *, *::before, *::after { box-sizing: inherit; }
+
+    html, body { margin: 0; min-height: 100%; }
+
+    body {
+      font-family: var(--font);
+      font-size: 1.0625rem;
+      line-height: 1.55;
+      color: var(--cream);
+      background: var(--plum);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---------- Lava-lamp background (decorative only) ---------- */
+    .lava {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: 0.7;
+      will-change: transform;
+    }
+    .blob--violet { width: 55vmax; height: 55vmax; background: var(--violet); top: -18vmax; left: -15vmax; animation: drift-a 26s ease-in-out infinite alternate; }
+    .blob--coral  { width: 38vmax; height: 38vmax; background: var(--coral);  bottom: -14vmax; right: -8vmax; opacity: 0.55; animation: drift-b 22s ease-in-out infinite alternate; }
+    .blob--sun    { width: 22vmax; height: 22vmax; background: var(--sun);    top: 38%; right: 18%; opacity: 0.28; animation: drift-c 30s ease-in-out infinite alternate; }
+
+    @keyframes drift-a { to { transform: translate(12vmax, 10vmax) scale(1.1); } }
+    @keyframes drift-b { to { transform: translate(-14vmax, -12vmax) scale(1.15); } }
+    @keyframes drift-c { to { transform: translate(-20vmax, 14vmax) scale(0.85); } }
+
+    /* ---------- Layout ---------- */
+    main {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 64rem);
+      margin: 0 auto;
+      padding: clamp(2.5rem, 7vw, 6rem) clamp(1.25rem, 5vw, 3rem) 3rem;
+    }
+
+    .greeting {
+      margin: 0;
+      font-weight: 700;
+      font-variation-settings: "wdth" 100, "opsz" 72;
+      font-size: clamp(2rem, 6.5vw, 3.75rem);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      max-width: 18ch;
+      overflow-wrap: anywhere;
+    }
+
+    .lede {
+      margin: 1rem 0 0;
+      max-width: 34rem;
+      font-size: clamp(1.0625rem, 2.2vw, 1.25rem);
+      color: var(--cream-soft);
+    }
+
+    /* ---------- The date: the one loud thing on the page ---------- */
+    .when {
+      margin: clamp(2.5rem, 7vw, 4.5rem) 0 0;
+    }
+    .when time { display: block; }
+
+    .when__day {
+      font-size: clamp(1.5rem, 4.5vw, 2.5rem);
+      font-weight: 500;
+      color: var(--sun);
+      line-height: 1;
+    }
+    .when__date {
+      font-size: clamp(4.5rem, 21vw, 12.5rem);
+      font-weight: 800;
+      font-variation-settings: "wdth" 75, "opsz" 96;
+      line-height: 0.88;
+      letter-spacing: -0.04em;
+      margin: 0.12em 0 0.08em -0.04em;
+      color: var(--cream);
+      text-shadow: 0.045em 0.045em 0 var(--coral);
+    }
+    .when__time {
+      font-size: clamp(2rem, 8vw, 4.5rem);
+      font-weight: 700;
+      font-variation-settings: "wdth" 85, "opsz" 72;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+    .when__time small {
+      font-size: 0.5em;
+      font-weight: 500;
+      color: var(--sun);
+      margin-left: 0.2em;
+    }
+    .when__local {
+      margin: 1rem 0 0;
+      color: var(--cream-soft);
+    }
+    .when__countdown {
+      display: inline-block;
+      margin-top: 0.75rem;
+      padding: 0.3rem 0.85rem;
+      border: 1.5px solid var(--mint);
+      border-radius: 999px;
+      color: var(--mint);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    /* ---------- Details + actions ---------- */
+    .details {
+      margin-top: clamp(2.5rem, 6vw, 3.5rem);
+      display: grid;
+      gap: 1.75rem;
+      max-width: 40rem;
+    }
+    .details p { margin: 0; }
+    .where strong { color: var(--sun); font-weight: 600; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      font: inherit;
+      font-weight: 650;
+      font-size: 1.0625rem;
+      padding: 0.85rem 1.4rem;
+      min-height: 48px;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    .btn--primary { background: var(--coral); color: var(--plum); }
+    .btn--primary:hover { background: #ff8576; }
+    .btn--ghost { background: transparent; color: var(--cream); border-color: rgba(255, 244, 230, 0.45); }
+    .btn--ghost:hover { border-color: var(--cream); }
+    .btn:active { transform: translateY(1px); }
+
+    /* Visible keyboard focus everywhere */
+    :focus-visible {
+      outline: 3px solid var(--mint);
+      outline-offset: 3px;
+    }
+
+    /* ---------- Personal link maker ---------- */
+    .share {
+      margin-top: clamp(3rem, 8vw, 5rem);
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 244, 230, 0.2);
+      max-width: 40rem;
+    }
+    .share h2 {
+      margin: 0 0 0.35rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .share p { margin: 0 0 1rem; color: var(--cream-soft); }
+
+    .share__row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .share label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    .share input {
+      flex: 1 1 14rem;
+      min-width: 0;
+      font: inherit;
+      color: var(--cream);
+      background: rgba(255, 244, 230, 0.08);
+      border: 1.5px solid rgba(255, 244, 230, 0.45);
+      border-radius: 999px;
+      padding: 0.8rem 1.2rem;
+      min-height: 48px;
+    }
+    .share input::placeholder { color: rgba(255, 244, 230, 0.55); }
+
+    .status {
+      min-height: 1.6em;
+      margin-top: 0.75rem;
+      color: var(--mint);
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 2rem 1rem 2.5rem;
+      font-size: 0.9rem;
+      color: rgba(255, 244, 230, 0.6);
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0 0 0 0);
+      white-space: nowrap; border: 0;
+    }
+
+    /* Respect people who prefer less motion: freeze the lava */
+    @media (prefers-reduced-motion: reduce) {
+      .blob { animation: none; }
+      .btn { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Decorative moving background; hidden from screen readers -->
+  <div class="lava" aria-hidden="true">
+    <div class="blob blob--violet"></div>
+    <div class="blob blob--coral"></div>
+    <div class="blob blob--sun"></div>
+  </div>
+
+  <main id="main">
+    <header>
+      <!-- Filled in by JavaScript: "Sam, you're invited!" or "You're invited!" -->
+      <h1 class="greeting" id="greeting">You're invited!</h1>
+      <p class="lede">
+        Come to a virtual vibe coding party. Bring an idea, a half-finished project,
+        or nothing at all. We'll build small, weird, useful things with AI, together.
+      </p>
+    </header>
+
+    <!-- The date and time, big and clear. JS fills in the text from one source of truth. -->
+    <section class="when" aria-labelledby="when-heading">
+      <h2 id="when-heading" class="visually-hidden">When</h2>
+      <time id="event-time" datetime="2026-10-13T10:00:00-04:00">
+        <span class="when__day" id="when-day">Tuesday</span>
+        <span class="when__date" id="when-date" style="display:block">Oct 13</span>
+        <span class="when__time" id="when-time">10:00 AM<small>ET</small></span>
+      </time>
+      <p class="when__local" id="when-local"></p>
+      <p id="when-countdown-wrap" hidden><span class="when__countdown" id="when-countdown"></span></p>
+    </section>
+
+    <section class="details" aria-labelledby="details-heading">
+      <h2 id="details-heading" class="visually-hidden">Details</h2>
+      <p class="where" id="where-text">
+        <strong>Where:</strong> online. The video link will be shared before the party.
+      </p>
+
+      <div class="actions">
+        <button type="button" class="btn btn--primary" id="add-calendar">
+          Add to calendar
+        </button>
+        <a class="btn btn--ghost" id="join-link" href="#" hidden>Join the party</a>
+      </div>
+    </section>
+
+    <!-- Lets the host (or any guest) make a personalized link for someone else -->
+    <section class="share" aria-labelledby="share-heading">
+      <h2 id="share-heading">Invite a friend</h2>
+      <p>Type their name to make a link that greets them personally.</p>
+      <form id="share-form" novalidate>
+        <label for="friend-name">Friend's name</label>
+        <div class="share__row">
+          <input id="friend-name" name="friend-name" type="text" autocomplete="off"
+                 maxlength="40" placeholder="e.g. Sam" aria-describedby="share-status">
+          <button type="submit" class="btn btn--ghost">Copy their link</button>
+        </div>
+      </form>
+      <!-- Announces results ("Link copied") to screen readers -->
+      <p class="status" id="share-status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Made with vibes. This page runs entirely in your browser.</p>
+  </footer>
+
+  <script>
+    // v1.0 - initial build
+
+    /* ==================================================================
+       EVENT SETTINGS
+       This is the single place to change the party details.
+       - start: the party start, written with the Eastern offset.
+         Oct 13, 2026 is still Daylight Time, so Eastern is UTC-4 ("-04:00").
+       - durationMinutes: how long the party runs (used for the calendar file).
+       - joinUrl: paste the video-call link here when you have it.
+         While it is empty, the page says the link will be shared later.
+       ================================================================== */
+    const EVENT = {
+      title: "Vibe Coding Party",
+      start: new Date("2026-10-13T10:00:00-04:00"),
+      durationMinutes: 90,
+      hostTimeZone: "America/New_York",
+      joinUrl: ""
+    };
+
+    // When the party ends, worked out from the start time plus the duration.
+    const EVENT_END = new Date(EVENT.start.getTime() + EVENT.durationMinutes * 60 * 1000);
+
+
+    /* ------------------------------------------------------------------
+       1. READ THE GUEST'S NAME FROM THE ADDRESS
+       Looks for ?to=Something in the page address. Cleans it up so it is
+       safe and tidy: trims spaces, squeezes repeated spaces, removes angle
+       brackets, and caps the length at 40 characters. Returns "" if missing.
+       ------------------------------------------------------------------ */
+    function getGuestName() {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get("to") || "";
+      return raw
+        .replace(/[<>]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 40);
+    }
+
+
+    /* ------------------------------------------------------------------
+       2. GREET THE GUEST
+       With a name: "Sam, you're invited!"  Without one: "You're invited!"
+       We use textContent (never innerHTML) so whatever someone types in
+       the address is shown as plain text and can't inject code.
+       The browser tab title is personalized too.
+       ------------------------------------------------------------------ */
+    function renderGreeting() {
+      const name = getGuestName();
+      const greeting = document.getElementById("greeting");
+
+      if (name) {
+        greeting.textContent = name + ", you're invited!";
+        document.title = name + ", you're invited — Vibe Coding Party";
+      } else {
+        greeting.textContent = "You're invited!";
+        document.title = "You're invited — Vibe Coding Party";
+      }
+    }
+
+
+    /* ------------------------------------------------------------------
+       3. SHOW THE DATE AND TIME IN EASTERN TIME
+       We always format in the host's time zone (New York), so the big
+       numbers are correct no matter where the guest's computer is.
+       ------------------------------------------------------------------ */
+    function renderDate() {
+      const tz = EVENT.hostTimeZone;
+
+      const day = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: tz }).format(EVENT.start);
+      const date = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: tz }).format(EVENT.start);
+      const time = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz }).format(EVENT.start);
+      const fullDate = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: tz }).format(EVENT.start);
+
+      document.getElementById("when-day").textContent = day;
+      document.getElementById("when-date").textContent = date;
+
+      // Time plus a smaller "ET" label. Built with DOM nodes, not HTML strings.
+      const timeEl = document.getElementById("when-time");
+      timeEl.textContent = time;
+      const tzLabel = document.createElement("small");
+      tzLabel.textContent = "ET";
+      timeEl.appendChild(tzLabel);
+
+      // Screen readers get one clear sentence instead of three separate fragments.
+      document.getElementById("event-time").setAttribute(
+        "aria-label", fullDate + " at " + time + " Eastern Time"
+      );
+    }
+
+
+    /* ------------------------------------------------------------------
+       4. TRANSLATE THE TIME INTO THE GUEST'S OWN TIME ZONE
+       If the guest's clock is set to a different zone, we add a line like
+       "That's 4:00 PM on Tuesday where you are." If they are already on
+       Eastern time, we say so instead.
+       ------------------------------------------------------------------ */
+    function renderLocalTime() {
+      const localEl = document.getElementById("when-local");
+      const guestZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      // Compare the formatted Eastern time with the formatted local time.
+      const fmt = { weekday: "long", hour: "numeric", minute: "2-digit" };
+      const eastern = new Intl.DateTimeFormat("en-US", { ...fmt, timeZone: EVENT.hostTimeZone }).format(EVENT.start);
+      const local = new Intl.DateTimeFormat("en-US", fmt).format(EVENT.start);
+
+      if (eastern === local) {
+        localEl.textContent = "Eastern Time, same as your clock.";
+      } else {
+        // Split "Tuesday 4:00 PM" into day and time for a friendlier sentence.
+        const localDay = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(EVENT.start);
+        const localTime = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(EVENT.start);
+        const place = guestZone ? " (" + guestZone.replace(/_/g, " ") + ")" : "";
+        localEl.textContent = "That's " + localTime + " on " + localDay + " where you are" + place + ".";
+      }
+    }
+
+
+    /* ------------------------------------------------------------------
+       5. FRIENDLY COUNTDOWN PILL
+       Shows "Today!", "Tomorrow", "In 5 days", "Happening now", or
+       "This party has wrapped" depending on the current date.
+       Days are counted on Eastern calendar dates so "tomorrow" is honest.
+       ------------------------------------------------------------------ */
+    function renderCountdown() {
+      const now = new Date();
+      const wrap = document.getElementById("when-countdown-wrap");
+      const pill = document.getElementById("when-countdown");
+      let label = "";
+
+      if (now >= EVENT_END) {
+        label = "This party has wrapped. Thanks for vibing.";
+      } else if (now >= EVENT.start) {
+        label = "Happening now";
+      } else {
+        // Turn a moment into an Eastern calendar date like "2026-10-13",
+        // then count whole days between today and party day.
+        const toEasternDay = (d) =>
+          new Intl.DateTimeFormat("en-CA", { timeZone: EVENT.hostTimeZone }).format(d);
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const days = Math.round(
+          (Date.parse(toEasternDay(EVENT.start)) - Date.parse(toEasternDay(now))) / msPerDay
+        );
+
+        if (days <= 0) label = "Today!";
+        else if (days === 1) label = "Tomorrow";
+        else label = "In " + days + " days";
+      }
+
+      pill.textContent = label;
+      wrap.hidden = false;
+    }
+
+
+    /* ------------------------------------------------------------------
+       6. JOIN LINK
+       If a video link is set in EVENT.joinUrl, show a "Join the party"
+       button and update the "Where" sentence. Otherwise leave the
+       "link will be shared" message in place.
+       ------------------------------------------------------------------ */
+    function renderJoinLink() {
+      if (!EVENT.joinUrl) return;
+
+      const link = document.getElementById("join-link");
+      link.href = EVENT.joinUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.setAttribute("aria-label", "Join the party (opens the video call in a new tab)");
+      link.hidden = false;
+
+      const where = document.getElementById("where-text");
+      where.textContent = "";
+      const strong = document.createElement("strong");
+      strong.textContent = "Where:";
+      where.append(strong, " online. Use the button below to join when it starts.");
+    }
+
+
+    /* ------------------------------------------------------------------
+       7. ADD TO CALENDAR
+       Builds a standard .ics calendar file right here in the browser and
+       downloads it. Works with Apple Calendar, Outlook, and Google Calendar
+       (import). Times are written in UTC so every calendar converts them
+       correctly. No server involved.
+       ------------------------------------------------------------------ */
+    function toIcsUtc(date) {
+      // 2026-10-13T14:00:00.000Z  ->  20261013T140000Z
+      return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    }
+
+    function downloadCalendarFile() {
+      const location = EVENT.joinUrl || "Online (link shared before the party)";
+      const lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Vibe Coding Party//Invite//EN",
+        "CALSCALE:GREGORIAN",
+        "BEGIN:VEVENT",
+        "UID:vibe-coding-party-" + toIcsUtc(EVENT.start) + "@invite",
+        "DTSTAMP:" + toIcsUtc(new Date()),
+        "DTSTART:" + toIcsUtc(EVENT.start),
+        "DTEND:" + toIcsUtc(EVENT_END),
+        "SUMMARY:" + EVENT.title,
+        "DESCRIPTION:A virtual vibe coding party. Bring an idea or just come hang out.",
+        "LOCATION:" + location,
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ];
+
+      // Calendar files expect Windows-style line endings (\r\n).
+      const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      // Create a temporary invisible link, click it, then clean up.
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "vibe-coding-party.ics";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+
+    /* ------------------------------------------------------------------
+       8. "INVITE A FRIEND" LINK MAKER
+       Takes the typed name, builds this page's address with ?to=Name,
+       and copies it to the clipboard. If the clipboard isn't available
+       (some older browsers, or pages opened from a file), it shows the
+       link on screen so it can be copied by hand.
+       ------------------------------------------------------------------ */
+    function buildPersonalLink(name) {
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.hash = "";
+      if (name) url.searchParams.set("to", name);
+      return url.toString();
+    }
+
+    async function handleShare(event) {
+      event.preventDefault(); // stay on the page; this form never submits anywhere
+      const input = document.getElementById("friend-name");
+      const status = document.getElementById("share-status");
+      const name = input.value.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
+
+      if (!name) {
+        status.textContent = "Type a name first, then copy their link.";
+        input.focus();
+        return;
+      }
+
+      const link = buildPersonalLink(name);
+
+      try {
+        await navigator.clipboard.writeText(link);
+        status.textContent = "Link copied for " + name + ": " + link;
+      } catch (err) {
+        status.textContent = "Copy this link for " + name + ": " + link;
+      }
+    }
+
+
+    /* ------------------------------------------------------------------
+       9. START EVERYTHING
+       Runs each piece once the page has loaded, and wires up the buttons.
+       The countdown refreshes every minute in case the page stays open.
+       ------------------------------------------------------------------ */
+    document.addEventListener("DOMContentLoaded", () => {
+      renderGreeting();
+      renderDate();
+      renderLocalTime();
+      renderCountdown();
+      renderJoinLink();
+
+      document.getElementById("add-calendar").addEventListener("click", downloadCalendarFile);
+      document.getElementById("share-form").addEventListener("submit", handleShare);
+
+      setInterval(renderCountdown, 60 * 1000);
+    });
+  </script>
+</body>
+</html>
