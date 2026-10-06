@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<!--
+  The Magic Stones: a choose-your-own-adventure visual novel
+  v1.0 - initial build: 7-scene story, visual-novel layout (portrait over background,
+         nameplate, dialogue box), typewriter text, keyboard and screen-reader support,
+         Play again on every ending. Runs entirely in the browser; nothing is sent anywhere.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Magic Stones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bangers&display=swap" rel="stylesheet">
+<style>
+  /* v1.0 - colour tokens, comic-book look: ink outlines, halftone dots, caption-paper dialogue box */
+  :root {
+    --ink: #231942;
+    --paper: #FFF6D6;
+    --paper-text: #231942;
+    --gold: #FFC93C;
+    --teal: #1B9AAA;
+    --crimson: #D7263D;
+    --choice-bg: #FFFFFF;
+    --display: "Bangers", "Impact", "Arial Black", system-ui, sans-serif;
+    --body: "Atkinson Hyperlegible", "Verdana", "Segoe UI", system-ui, sans-serif;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --paper: #2E2552; --paper-text: #FFF6D6; --choice-bg: #F4EFFF; }
+  }
+  :root[data-theme="dark"] { --paper: #2E2552; --paper-text: #FFF6D6; --choice-bg: #F4EFFF; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    height: 100%; margin: 0; overflow: hidden;
+    background: var(--ink); color: var(--paper-text); font-family: var(--body);
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* The stage fills the screen; the background sits behind everything */
+  .stage { position: relative; height: 100%; width: 100%; overflow: hidden; isolation: isolate; }
+  .bg { position: absolute; inset: 0; z-index: 0; }
+  .bg svg { width: 100%; height: 100%; display: block; animation: fade-in .6s ease-out; }
+  /* Halftone dots over the whole scene, like printed comics */
+  .stage::after {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: radial-gradient(rgba(35, 25, 66, .2) 1.2px, transparent 1.6px);
+    background-size: 7px 7px;
+  }
+
+  /* Title screen */
+  .title-screen {
+    position: relative; z-index: 2; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1.25rem; padding: 1.5rem; text-align: center;
+  }
+  .game-title {
+    margin: 0; font-family: var(--display); font-weight: 400; line-height: .95;
+    font-size: clamp(3.2rem, 13vw, 7.5rem); letter-spacing: .02em;
+    color: var(--gold); -webkit-text-stroke: 3px var(--ink);
+    text-shadow: 6px 6px 0 var(--ink); transform: rotate(-3deg);
+  }
+  .tagline {
+    margin: 0; max-width: 34ch; font-size: clamp(1.05rem, 2.6vw, 1.3rem); line-height: 1.5;
+    background: var(--paper); color: var(--paper-text);
+    border: 4px solid var(--ink); border-radius: 12px; box-shadow: 5px 5px 0 var(--ink);
+    padding: .75rem 1.1rem;
+  }
+  .hint { margin: 0; max-width: 40ch; color: #fff; font-size: .95rem; line-height: 1.45;
+          text-shadow: 0 1px 2px var(--ink), 0 0 8px var(--ink); }
+
+  /* Game layout: scene title at top, characters in the middle, dialogue box at bottom */
+  .layout {
+    position: relative; z-index: 2; height: 100%;
+    display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+    padding: 12px clamp(8px, 3vw, 32px) clamp(10px, 2.5vh, 24px);
+  }
+  .scene-chip {
+    justify-self: start; margin: 0; font-family: var(--display); font-weight: 400;
+    font-size: clamp(1rem, 2.6vw, 1.25rem); letter-spacing: .04em;
+    background: var(--ink); color: var(--gold); padding: .2rem .7rem; border-radius: 4px;
+  }
+  .cast {
+    display: flex; justify-content: center; align-items: flex-end;
+    min-height: 0; margin-bottom: -30px; padding-top: 8px;
+  }
+  .portrait {
+    height: 100%; max-height: 540px; aspect-ratio: 2 / 3; min-width: 0; flex: 0 1 auto;
+    margin-inline: -1.5%; transform-origin: bottom center;
+    transition: filter .25s ease, transform .25s ease;
+    animation: rise-in .35s ease-out;
+  }
+  .portrait svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .portrait.dim { filter: brightness(.6) saturate(.7); transform: scale(.95); }
+
+  /* The dialogue box, with a tilted nameplate stuck to its top edge */
+  .dialogue {
+    position: relative; z-index: 3; width: min(100%, 920px); margin: 0 auto;
+    background: var(--paper); color: var(--paper-text);
+    border: 4px solid var(--ink); border-radius: 14px; box-shadow: 6px 6px 0 var(--ink);
+    padding: 2.1rem clamp(1rem, 3vw, 1.75rem) 1rem;
+  }
+  .dialogue:focus { outline: none; }
+  .nameplate {
+    position: absolute; top: 0; left: clamp(12px, 3vw, 28px); margin: 0;
+    transform: translateY(-55%) rotate(-2deg);
+    font-family: var(--display); font-weight: 400; letter-spacing: .03em;
+    font-size: clamp(1.35rem, 3.6vw, 1.85rem);
+    background: var(--gold); color: var(--ink);
+    border: 4px solid var(--ink); border-radius: 6px; padding: .05rem .8rem;
+  }
+  .nameplate[data-who="narrator"] { background: var(--teal); color: #fff; }
+  .nameplate[data-who="baddie"] { background: var(--crimson); color: #fff; }
+  .stamp {
+    position: absolute; top: 0; right: clamp(12px, 3vw, 28px); margin: 0;
+    transform: translateY(-50%) rotate(4deg);
+    font-family: var(--display); font-size: clamp(1.1rem, 3vw, 1.5rem); letter-spacing: .05em;
+    background: var(--ink); color: var(--gold); padding: .1rem .7rem; border-radius: 4px;
+  }
+  .line {
+    margin: 0 0 1rem; max-width: 68ch; min-height: 3.2em; cursor: pointer;
+    font-size: clamp(1.05rem, 2.6vw, 1.3rem); line-height: 1.55;
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: .7rem; justify-content: flex-end; }
+
+  /* Buttons: chunky comic panels that press down when clicked */
+  .btn {
+    display: inline-flex; align-items: center; gap: .55rem; min-height: 46px;
+    font-family: var(--display); font-size: clamp(1.15rem, 3vw, 1.4rem); letter-spacing: .04em;
+    color: var(--ink); background: var(--gold); text-align: left;
+    border: 3px solid var(--ink); border-radius: 8px; box-shadow: 4px 4px 0 var(--ink);
+    padding: .45rem 1.1rem; cursor: pointer;
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  .btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+  .btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  .btn:focus-visible { outline: 4px solid var(--teal); outline-offset: 3px; }
+  .btn.choice { background: var(--choice-bg); flex: 1 1 220px; }
+  .key {
+    display: inline-grid; place-items: center; flex: none; width: 1.7em; height: 1.7em;
+    font-family: var(--body); font-weight: 700; font-size: .8rem;
+    background: var(--gold); border: 2px solid var(--ink); border-radius: 4px;
+  }
+
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes rise-in { from { opacity: 0; translate: 0 16px; } to { opacity: 1; translate: 0 0; } }
+
+  /* Phones held upright: give the characters a little less room so the text fits */
+  @media (max-width: 560px) {
+    .cast { margin-bottom: -18px; }
+    .btn.choice { flex-basis: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <!-- Background art is swapped in here by the script -->
+  <div class="bg" id="bg" aria-hidden="true"></div>
+
+  <!-- Title screen, shown before the story starts -->
+  <section class="title-screen" id="title-screen" aria-labelledby="game-title">
+    <h1 class="game-title" id="game-title">The Magic Stones</h1>
+    <p class="tagline">Baddie has come to Earth hunting for Magic Stones. You decide what happens next.</p>
+    <button class="btn" id="start-btn" type="button">Start the story</button>
+    <p class="hint">Click or press Enter to continue. Pick a choice with the mouse, Tab and Enter, or the 1 and 2 keys.</p>
+  </section>
+
+  <!-- The game screen -->
+  <div class="layout" id="game" hidden>
+    <h2 class="scene-chip" id="scene-chip"></h2>
+    <div class="cast" id="cast" role="group" aria-label="Characters on screen"></div>
+    <section class="dialogue" id="dialogue" aria-labelledby="nameplate" tabindex="-1">
+      <h3 class="nameplate" id="nameplate"></h3>
+      <p class="stamp" id="stamp" hidden>The end</p>
+      <!-- Visible typewriter text (hidden from screen readers so they don't hear it letter by letter) -->
+      <p class="line" id="line" aria-hidden="true"></p>
+      <!-- The full line for screen readers -->
+      <p class="sr-only" id="sr-line"></p>
+      <div class="actions" id="actions" role="group" aria-label="What happens next"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+// v1.0 - initial build
+
+/* =====================================================================
+   THE STORY
+   ---------------------------------------------------------------------
+   Everything the player reads lives in this one list. Edit freely.
+
+   Each scene has:
+     id          a unique name other scenes use to jump here
+     title       shown in the corner of the screen
+     background  which backdrop to show: "city", "mind", "canyon", "parade" or "doom"
+     lines       what is said, in order. Each line has:
+                   speaker   the name shown above the words ("Narrator" or a character's name)
+                   portraits who stands on screen: "baddie", "captain", "ferrous", "bulk", "bore"
+                   text      the words
+     choices     the buttons shown after the last line: { label, next }
+                 "next" must match another scene's id
+     ending      add ending: true to finish the story with a Play again button
+
+   The first scene in the list is where the story starts (and restarts).
+   ===================================================================== */
+const STORY = [
+  {
+    id: "scene1",
+    title: "Scene 1: Introduction",
+    background: "city",
+    lines: [
+      { speaker: "Narrator", portraits: ["baddie"],
+        text: "The evil Baddie appears on planet Earth looking for Magic Stones." },
+      { speaker: "Narrator", portraits: ["captain", "ferrous", "bulk", "bore"],
+        text: "The Superheroes assemble to defeat him: Captain Finger Lake, Ferrous Man, the Bulk, and Bore." },
+      { speaker: "Captain Finger Lake", portraits: ["captain", "ferrous", "bulk", "bore"],
+        text: "Only the Brain Stone and the Brawn Stone are on Earth. We'll break up into two teams." },
+      { speaker: "Ferrous Man", portraits: ["captain", "ferrous"],
+        text: "Cap and I will stop Baddie from finding the Brain Stone. If he finds it, he can control the mind of one Superhero." },
+      { speaker: "The Bulk", portraits: ["bulk", "bore"],
+        text: "Bore and I will stop Baddie from finding the Brawn Stone. If he finds it, he can defeat one Superhero." },
+      { speaker: "Narrator", portraits: ["baddie"],
+        text: "Which Stone does Baddie find?" }
+    ],
+    choices: [
+      { label: "The Brain Stone", next: "scene2" },
+      { label: "The Brawn Stone", next: "scene3" }
+    ]
+  },
+  {
+    id: "scene2",
+    title: "Scene 2: Brain Stone",
+    background: "mind",
+    lines: [
+      { speaker: "Baddie", portraits: ["baddie"],
+        text: "Ha! I have found the Brain Stone. Now I can try to control the mind of one Superhero!" },
+      { speaker: "Narrator", portraits: ["captain", "ferrous"],
+        text: "Choose a Superhero for an epic mental battle." }
+    ],
+    choices: [
+      { label: "Captain Finger Lake", next: "scene4-captain" },
+      { label: "Ferrous Man", next: "scene4-ferrous" }
+    ]
+  },
+  {
+    id: "scene3",
+    title: "Scene 3: Brawn Stone",
+    background: "canyon",
+    lines: [
+      { speaker: "Baddie", portraits: ["baddie"],
+        text: "Ha! I have found the Brawn Stone. Now I can try to defeat one Superhero!" },
+      { speaker: "Narrator", portraits: ["bulk", "bore"],
+        text: "Choose a Superhero for an epic physical battle." }
+    ],
+    choices: [
+      { label: "The Bulk", next: "scene5-bulk" },
+      { label: "Bore", next: "scene5-bore" }
+    ]
+  },
+  {
+    id: "scene4-captain",
+    title: "Scene 4: Battle of Brains",
+    background: "mind",
+    lines: [
+      { speaker: "Narrator", portraits: ["baddie", "captain"],
+        text: "Baddie turns the Brain Stone on Captain Finger Lake." },
+      { speaker: "Captain Finger Lake", portraits: ["baddie", "captain"],
+        text: "Nice try, Baddie. My mind is far too strong for you!" },
+      { speaker: "Narrator", portraits: ["baddie", "captain"],
+        text: "Captain Finger Lake has a very strong mind. Baddie loses!" }
+    ],
+    choices: [
+      { label: "Continue", next: "scene6" }
+    ]
+  },
+  {
+    id: "scene4-ferrous",
+    title: "Scene 4: Battle of Brains",
+    background: "mind",
+    lines: [
+      { speaker: "Narrator", portraits: ["baddie", "ferrous"],
+        text: "Baddie turns the Brain Stone on Ferrous Man." },
+      { speaker: "Ferrous Man", portraits: ["baddie", "ferrous"],
+        text: "Must... resist... Actually, Baddie, you make some very good points." },
+      { speaker: "Narrator", portraits: ["baddie", "ferrous"],
+        text: "Ferrous Man can be easily swayed. Baddie wins!" }
+    ],
+    choices: [
+      { label: "Continue", next: "scene7" }
+    ]
+  },
+  {
+    id: "scene5-bulk",
+    title: "Scene 5: Battle of Brawn",
+    background: "canyon",
+    lines: [
+      { speaker: "Narrator", portraits: ["baddie", "bulk"],
+        text: "Baddie uses the Brawn Stone to take on the Bulk." },
+      { speaker: "The Bulk", portraits: ["baddie", "bulk"],
+        text: "You picked the wrong Superhero to wrestle, Baddie!" },
+      { speaker: "Narrator", portraits: ["baddie", "bulk"],
+        text: "The Bulk is very strong physically. Baddie loses!" }
+    ],
+    choices: [
+      { label: "Continue", next: "scene6" }
+    ]
+  },
+  {
+    id: "scene5-bore",
+    title: "Scene 5: Battle of Brawn",
+    background: "canyon",
+    lines: [
+      { speaker: "Narrator", portraits: ["baddie", "bore"],
+        text: "Baddie uses the Brawn Stone to take on Bore." },
+      { speaker: "Bore", portraits: ["baddie", "bore"],
+        text: "Is it time for my nap already? ...Oof!" },
+      { speaker: "Narrator", portraits: ["baddie", "bore"],
+        text: "Bore can be more easily defeated physically. Baddie wins!" }
+    ],
+    choices: [
+      { label: "Continue", next: "scene7" }
+    ]
+  },
+  {
+    id: "scene6",
+    title: "Scene 6: Earth is saved",
+    background: "parade",
+    ending: true,
+    lines: [
+      { speaker: "Narrator", portraits: ["captain", "ferrous", "bulk", "bore"],
+        text: "Yay! There is a wonderful victory parade, and the Superheroes are awarded medals of honor." }
+    ]
+  },
+  {
+    id: "scene7",
+    title: "Scene 7: Earth is doomed",
+    background: "doom",
+    ending: true,
+    lines: [
+      { speaker: "Narrator", portraits: ["baddie"],
+        text: "Oh no! There is dreadful destruction, and the Superheroes are thrown into a chasm." }
+    ]
+  }
+];
+
+
+/* =====================================================================
+   CHARACTERS
+   ---------------------------------------------------------------------
+   Each character has a display name (must match "speaker" in the story
+   for their nameplate colour and spotlight to work) and portrait art,
+   drawn as SVG so the file needs no image downloads.
+   ===================================================================== */
+
+// Shared opening tag for every portrait so they all scale the same way
+const PORTRAIT_OPEN = '<svg viewBox="0 0 200 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false"><g stroke="#231942" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">';
+const PORTRAIT_CLOSE = '</g></svg>';
+
+const CHARACTERS = {
+  baddie: {
+    name: "Baddie",
+    art: PORTRAIT_OPEN + `
+      <path d="M22 300 L36 168 Q100 128 164 168 L178 300Z" fill="#3B1C32"/>
+      <path d="M44 200 L30 120 L78 176Z M156 200 L170 120 L122 176Z" fill="#D7263D"/>
+      <path d="M40 300 Q42 214 72 202 L128 202 Q158 214 160 300Z" fill="#4A1942"/>
+      <path d="M100 228 L116 250 L100 274 L84 250Z" fill="#FF5D8F"/>
+      <rect x="86" y="168" width="28" height="36" fill="#A93226"/>
+      <path d="M68 92 Q48 70 56 40 Q66 62 82 80Z M132 92 Q152 70 144 40 Q134 62 118 80Z" fill="#FFF6D6"/>
+      <ellipse cx="100" cy="126" rx="38" ry="48" fill="#C0392B"/>
+      <path d="M72 102 L92 112 M128 102 L108 112" stroke-width="5"/>
+      <ellipse cx="100" cy="124" rx="17" ry="13" fill="#FFC93C"/>
+      <rect x="97" y="114" width="6" height="20" rx="3" fill="#231942" stroke="none"/>
+      <path d="M76 150 Q100 174 124 150Z" fill="#FFF6D6"/>
+      <path d="M80 152 L86 160 L92 154 L98 162 L104 154 L110 162 L116 154 L121 158" fill="none" stroke-width="2.5"/>
+    ` + PORTRAIT_CLOSE
+  },
+  captain: {
+    name: "Captain Finger Lake",
+    art: PORTRAIT_OPEN + `
+      <path d="M28 300 L44 190 Q100 166 156 190 L172 300Z" fill="#FFC93C"/>
+      <path d="M38 300 Q40 214 70 200 L130 200 Q160 214 162 300Z" fill="#1B9AAA"/>
+      <path d="M68 246 q10 -12 21 0 t21 0 t21 0 M68 268 q10 -12 21 0 t21 0 t21 0" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+      <rect x="86" y="168" width="28" height="36" fill="#E3AE84"/>
+      <ellipse cx="100" cy="128" rx="40" ry="48" fill="#F2C29B"/>
+      <path d="M58 122 Q52 70 100 70 Q150 68 142 120 Q130 92 100 96 Q78 98 58 122Z" fill="#C98B3E"/>
+      <path d="M60 118 Q100 106 140 118 L138 140 Q100 130 62 140Z" fill="#14607A"/>
+      <ellipse cx="84" cy="126" rx="7" ry="5" fill="#FFFFFF" stroke-width="2"/>
+      <ellipse cx="116" cy="126" rx="7" ry="5" fill="#FFFFFF" stroke-width="2"/>
+      <path d="M86 156 Q100 168 114 156" fill="none" stroke-width="3.5"/>
+    ` + PORTRAIT_CLOSE
+  },
+  ferrous: {
+    name: "Ferrous Man",
+    art: PORTRAIT_OPEN + `
+      <path d="M34 300 Q36 212 70 198 L130 198 Q164 212 166 300Z" fill="#8D99AE"/>
+      <circle cx="56" cy="222" r="6" fill="#EDF2F4"/>
+      <circle cx="144" cy="222" r="6" fill="#EDF2F4"/>
+      <path d="M78 236 L78 262 Q78 286 100 286 Q122 286 122 262 L122 236 L108 236 L108 262 Q108 272 100 272 Q92 272 92 262 L92 236Z" fill="#D7263D"/>
+      <rect x="78" y="226" width="14" height="12" fill="#EDF2F4"/>
+      <rect x="108" y="226" width="14" height="12" fill="#EDF2F4"/>
+      <rect x="86" y="168" width="28" height="34" fill="#A9714B"/>
+      <ellipse cx="100" cy="128" rx="40" ry="48" fill="#C68A5E"/>
+      <path d="M60 116 L62 80 L76 96 L82 64 L96 88 L104 60 L114 88 L126 66 L130 94 L142 80 L140 116 Q100 92 60 116Z" fill="#D9DEE6"/>
+      <rect x="58" y="117" width="84" height="12" rx="4" fill="#231942" stroke="none"/>
+      <circle cx="83" cy="123" r="13" fill="#FFC93C"/>
+      <circle cx="117" cy="123" r="13" fill="#FFC93C"/>
+      <path d="M86 157 q7 -6 14 0 t14 0" fill="none" stroke-width="3.5"/>
+    ` + PORTRAIT_CLOSE
+  },
+  bulk: {
+    name: "The Bulk",
+    art: PORTRAIT_OPEN + `
+      <path d="M6 300 Q4 204 54 186 L146 186 Q196 204 194 300Z" fill="#D9A066"/>
+      <path d="M50 300 L58 206 Q100 228 142 206 L150 300Z" fill="#2B59C3"/>
+      <rect x="54" y="240" width="92" height="10" fill="#FFFFFF" stroke="none"/>
+      <rect x="53" y="266" width="94" height="10" fill="#FFFFFF" stroke="none"/>
+      <rect x="72" y="148" width="56" height="46" fill="#C98E55"/>
+      <ellipse cx="100" cy="116" rx="44" ry="44" fill="#E0A96D"/>
+      <path d="M58 92 Q60 64 100 64 Q140 64 142 92Z" fill="#4A2A12"/>
+      <path d="M56 86 L144 86 L144 100 L56 100Z" fill="#FF8C42"/>
+      <path d="M58 116 Q58 172 100 178 Q142 172 142 116 Q132 146 100 148 Q68 146 58 116Z" fill="#6B3E1F"/>
+      <path d="M76 112 L92 116 M124 112 L108 116" stroke-width="5"/>
+      <circle cx="84" cy="124" r="3.5" fill="#231942" stroke="none"/>
+      <circle cx="116" cy="124" r="3.5" fill="#231942" stroke="none"/>
+      <path d="M88 158 L112 158" stroke="#FFF6D6" stroke-width="4"/>
+    ` + PORTRAIT_CLOSE
+  },
+  bore: {
+    name: "Bore",
+    art: PORTRAIT_OPEN + `
+      <path d="M38 300 Q40 214 70 200 L130 200 Q160 214 162 300Z" fill="#B8A1D9"/>
+      <rect x="76" y="234" width="48" height="32" rx="12" fill="#FFFFFF"/>
+      <path d="M100 236 L100 264" stroke-width="2.5"/>
+      <path d="M68 196 Q100 214 132 196 L134 210 Q100 228 66 210Z M118 210 L126 270 L142 266 L130 206Z" fill="#6C9A8B"/>
+      <rect x="86" y="170" width="28" height="32" fill="#E8BFA2"/>
+      <ellipse cx="100" cy="130" rx="40" ry="46" fill="#F5D0B5"/>
+      <path d="M58 116 Q58 64 106 66 Q148 70 170 38 Q178 64 158 86 Q150 100 142 116Z" fill="#3A6EA5"/>
+      <path d="M56 112 Q100 100 144 112 L144 124 Q100 112 56 124Z" fill="#FFFFFF"/>
+      <circle cx="170" cy="38" r="10" fill="#FFFFFF"/>
+      <path d="M74 134 Q84 140 94 134 M106 134 Q116 140 126 134" fill="none" stroke-width="3.5"/>
+      <path d="M74 130 L94 130 M106 130 L126 130" stroke-width="3"/>
+      <ellipse cx="100" cy="158" rx="7" ry="9" fill="#8E2C3B"/>
+      <path d="M160 108 l12 0 l-12 14 l12 0 M176 88 l9 0 l-9 10 l9 0" fill="none" stroke-width="3"/>
+    ` + PORTRAIT_CLOSE
+  }
+};
+
+
+/* =====================================================================
+   BACKGROUNDS
+   ---------------------------------------------------------------------
+   Full-screen SVG scenery. "slice" makes each one fill the screen at any
+   size, cropping the edges on tall phones rather than leaving gaps.
+   ===================================================================== */
+
+// Scatters confetti in the same spots every time (a tiny repeatable random generator)
+function makeConfetti(count) {
+  let seed = 7;
+  const random = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const colours = ["#FFC93C", "#D7263D", "#1B9AAA", "#FFFFFF", "#7B5CD6"];
+  let shapes = "";
+  for (let i = 0; i < count; i++) {
+    const x = Math.round(random() * 1600);
+    const y = Math.round(random() * 560);
+    const angle = Math.round(random() * 360);
+    shapes += `<rect x="${x}" y="${y}" width="14" height="26" fill="${colours[i % colours.length]}" transform="rotate(${angle} ${x + 7} ${y + 13})"/>`;
+  }
+  return shapes;
+}
+
+// Draws a string of triangle flags hanging across the top of the parade
+function makeBunting() {
+  const colours = ["#D7263D", "#FFC93C", "#1B9AAA", "#FFFFFF"];
+  let flags = "";
+  for (let x = 40, i = 0; x < 1600; x += 90, i++) {
+    const t = x / 1600;
+    const y = 140 + 200 * t * (1 - t); // follows the sagging string
+    flags += `<polygon points="${x - 32},${y} ${x + 32},${y} ${x},${y + 62}" fill="${colours[i % colours.length]}"/>`;
+  }
+  return `<path d="M0 140 Q800 240 1600 140" fill="none"/>` + flags;
+}
+
+const BG_OPEN = '<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">';
+
+const BACKGROUNDS = {
+  // Dusk over the city, with Baddie's ship beaming down
+  city: BG_OPEN + `
+    <defs><linearGradient id="sky-city" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A2E7A"/><stop offset=".55" stop-color="#E5547A"/><stop offset="1" stop-color="#FFB86B"/>
+    </linearGradient></defs>
+    <rect width="1600" height="900" fill="url(#sky-city)"/>
+    <circle cx="1220" cy="250" r="110" fill="#FFE29A"/>
+    <polygon points="330,250 430,250 560,700 200,700" fill="#FFE29A" opacity=".35"/>
+    <g stroke="#231942" stroke-width="6" stroke-linejoin="round">
+      <ellipse cx="380" cy="215" rx="58" ry="40" fill="#7DF9FF"/>
+      <ellipse cx="380" cy="240" rx="130" ry="32" fill="#D7263D"/>
+      <path d="M0 900 L0 640 L90 640 L90 560 L190 560 L190 680 L260 680 L260 500 L360 500 L360 620 L440 620 L440 450 L520 450 L520 600 L620 600 L620 540 L700 540 L700 660 L780 660 L780 480 L880 480 L880 610 L960 610 L960 420 L1060 420 L1060 590 L1140 590 L1140 520 L1240 520 L1240 650 L1320 650 L1320 470 L1420 470 L1420 600 L1500 600 L1500 540 L1600 540 L1600 900Z" fill="#2A1F5C"/>
+    </g>
+    <g fill="#FFC93C">
+      <rect x="285" y="530" width="20" height="26"/><rect x="320" y="580" width="20" height="26"/>
+      <rect x="465" y="480" width="20" height="26"/><rect x="980" y="450" width="20" height="26"/>
+      <rect x="1020" y="520" width="20" height="26"/><rect x="1350" y="500" width="20" height="26"/>
+      <rect x="805" y="510" width="20" height="26"/><rect x="1380" y="560" width="20" height="26"/>
+    </g>`,
+
+  // Inside the mind battle: rings of psychic energy around the Brain Stone
+  mind: BG_OPEN + `
+    <defs>
+      <radialGradient id="sky-mind" cx=".5" cy=".4" r=".75"><stop offset="0" stop-color="#7B5CD6"/><stop offset="1" stop-color="#1E1446"/></radialGradient>
+      <radialGradient id="glow-mind"><stop offset="0" stop-color="#7DF9FF" stop-opacity=".85"/><stop offset="1" stop-color="#7DF9FF" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="1600" height="900" fill="url(#sky-mind)"/>
+    <g fill="none" stroke="#B9A8FF" stroke-opacity=".35" stroke-width="8">
+      <circle cx="800" cy="320" r="130"/><circle cx="800" cy="320" r="250"/><circle cx="800" cy="320" r="380"/>
+      <circle cx="800" cy="320" r="520"/><circle cx="800" cy="320" r="680"/>
+    </g>
+    <circle cx="800" cy="320" r="230" fill="url(#glow-mind)"/>
+    <g stroke="#231942" stroke-width="8" stroke-linejoin="round">
+      <polygon points="800,230 868,316 800,420 732,316" fill="#7DF9FF"/>
+      <polygon points="800,230 834,316 800,420" fill="#C7FBFF" stroke-width="4"/>
+    </g>`,
+
+  // Desert canyon where the Brawn Stone sits on a rock
+  canyon: BG_OPEN + `
+    <defs>
+      <linearGradient id="sky-canyon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF7B54"/><stop offset="1" stop-color="#FFC27A"/></linearGradient>
+      <radialGradient id="glow-canyon"><stop offset="0" stop-color="#FFE29A" stop-opacity=".9"/><stop offset="1" stop-color="#FFE29A" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="1600" height="900" fill="url(#sky-canyon)"/>
+    <circle cx="1260" cy="220" r="120" fill="#FFE29A"/>
+    <g stroke="#231942" stroke-width="6" stroke-linejoin="round">
+      <path d="M0 600 L120 600 L160 460 L420 460 L460 600 L900 600 L940 410 L1180 410 L1220 600 L1600 600 L1600 900 L0 900Z" fill="#C1502E"/>
+      <path d="M0 720 Q400 640 800 700 T1600 680 L1600 900 L0 900Z" fill="#8C3A22"/>
+    </g>
+    <circle cx="800" cy="540" r="150" fill="url(#glow-canyon)"/>
+    <g stroke="#231942" stroke-width="7" stroke-linejoin="round">
+      <path d="M690 720 L715 610 L885 610 L910 720Z" fill="#5E2617"/>
+      <polygon points="800,460 852,490 852,550 800,580 748,550 748,490" fill="#FF8C1A"/>
+      <polygon points="800,460 852,490 800,520 748,490" fill="#FFC27A" stroke-width="4"/>
+    </g>`,
+
+  // Victory parade: bright sky, bunting and confetti
+  parade: BG_OPEN + `
+    <defs><linearGradient id="sky-parade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6CC6F2"/><stop offset="1" stop-color="#D6F3FF"/></linearGradient></defs>
+    <rect width="1600" height="900" fill="url(#sky-parade)"/>
+    <g stroke="#231942" stroke-width="6" stroke-linejoin="round">
+      <rect x="-10" y="430" width="260" height="480" fill="#FF9FB2"/>
+      <rect x="250" y="360" width="220" height="550" fill="#FFD27A"/>
+      <rect x="1140" y="380" width="230" height="530" fill="#9FE2BF"/>
+      <rect x="1370" y="450" width="240" height="460" fill="#B8A1D9"/>
+      <path d="M0 760 L1600 760 L1600 910 L0 910Z" fill="#E8E2D0"/>
+      ${makeBunting()}
+    </g>
+    <g>${makeConfetti(60)}</g>`,
+
+  // Earth is doomed: burning sky, ruined skyline and a chasm
+  doom: BG_OPEN + `
+    <defs>
+      <linearGradient id="sky-doom" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B0A1A"/><stop offset=".7" stop-color="#B3202F"/><stop offset="1" stop-color="#FF7B3A"/></linearGradient>
+    </defs>
+    <rect width="1600" height="900" fill="url(#sky-doom)"/>
+    <g stroke="#140410" stroke-width="6" stroke-linejoin="round">
+      <path d="M0 900 L0 600 L80 560 L120 620 L200 520 L250 600 L330 580 L380 650 L460 540 L520 610 L600 590 L660 660 L760 600 L820 650 L900 560 L980 630 L1060 580 L1120 640 L1200 540 L1280 610 L1360 570 L1440 640 L1520 580 L1600 620 L1600 900Z" fill="#1A0610"/>
+      <path d="M0 760 L1600 760 L1600 900 L0 900Z" fill="#3D1A1A"/>
+      <path d="M560 760 L640 800 L600 840 L700 900 L980 900 L1040 840 L1000 800 L1060 760Z" fill="#000000"/>
+      <path d="M300 790 L380 820 L420 860 M1180 780 L1260 830 L1300 880 M480 860 L540 830" fill="none" stroke="#000" stroke-width="5"/>
+      <polygon points="300,180 340,170 350,210 310,220" fill="#3D1A1A"/>
+      <polygon points="1300,260 1350,250 1356,300 1306,296" fill="#3D1A1A"/>
+      <polygon points="900,120 930,116 936,146 904,150" fill="#3D1A1A"/>
+    </g>
+    <g fill="#FFC93C" opacity=".8">
+      <circle cx="420" cy="420" r="5"/><circle cx="760" cy="380" r="4"/><circle cx="1100" cy="460" r="6"/>
+      <circle cx="1400" cy="360" r="4"/><circle cx="220" cy="300" r="5"/>
+    </g>`
+};
+// Close every background's SVG tag
+Object.keys(BACKGROUNDS).forEach(key => { BACKGROUNDS[key] += "</svg>"; });
+
+
+/* =====================================================================
+   GAME ENGINE
+   ---------------------------------------------------------------------
+   Nothing below needs changing to edit the story.
+   ===================================================================== */
+
+// Look up scenes by id, and remember where the story begins
+const scenesById = new Map(STORY.map(scene => [scene.id, scene]));
+const FIRST_SCENE_ID = STORY[0].id;
+
+// Handy references to the parts of the page we update
+const els = {
+  bg: document.getElementById("bg"),
+  titleScreen: document.getElementById("title-screen"),
+  startBtn: document.getElementById("start-btn"),
+  game: document.getElementById("game"),
+  chip: document.getElementById("scene-chip"),
+  cast: document.getElementById("cast"),
+  dialogue: document.getElementById("dialogue"),
+  nameplate: document.getElementById("nameplate"),
+  stamp: document.getElementById("stamp"),
+  line: document.getElementById("line"),
+  srLine: document.getElementById("sr-line"),
+  actions: document.getElementById("actions")
+};
+
+// Respect the "reduce motion" setting: no typewriter effect if it's on
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+// Where the player is right now: which scene, and which line of it
+const state = { scene: null, lineIndex: 0 };
+
+// Typewriter bookkeeping: the running timer and the full line being typed
+let typingTimer = null;
+let typingFullText = "";
+
+/* Check the story for mistakes (like a choice pointing to a scene that
+   doesn't exist) and report them in the browser console, so edits that
+   break a link are easy to spot. */
+function checkStory() {
+  STORY.forEach(scene => {
+    if (!scene.lines || scene.lines.length === 0) {
+      console.warn(`Scene "${scene.id}" has no lines.`);
+    }
+    if (!scene.ending && (!scene.choices || scene.choices.length === 0)) {
+      console.warn(`Scene "${scene.id}" has no choices and isn't marked as an ending, so the player would get stuck.`);
+    }
+    (scene.choices || []).forEach(choice => {
+      if (!scenesById.has(choice.next)) {
+        console.warn(`Scene "${scene.id}": the choice "${choice.label}" goes to "${choice.next}", which doesn't exist.`);
+      }
+    });
+    if (scene.background && !BACKGROUNDS[scene.background]) {
+      console.warn(`Scene "${scene.id}" uses an unknown background "${scene.background}".`);
+    }
+    scene.lines.forEach(line => (line.portraits || []).forEach(key => {
+      if (!CHARACTERS[key]) console.warn(`Scene "${scene.id}" uses an unknown portrait "${key}".`);
+    }));
+  });
+}
+
+/* Swap the background, but only if it's actually different from the one
+   on screen (so it doesn't flicker between lines of the same scene). */
+function setBackground(key) {
+  const chosen = BACKGROUNDS[key] ? key : "city";
+  if (els.bg.dataset.key === chosen) return;
+  els.bg.dataset.key = chosen;
+  els.bg.innerHTML = BACKGROUNDS[chosen];
+}
+
+/* Find which character is speaking from their display name.
+   Returns their key (like "captain"), or null for the Narrator. */
+function characterKeyFor(speakerName) {
+  const match = Object.entries(CHARACTERS).find(([, c]) => c.name === speakerName);
+  return match ? match[0] : null;
+}
+
+/* Put the characters on stage. Whoever is speaking stays bright;
+   everyone else is dimmed slightly, like a visual novel spotlight. */
+function renderCast(portraitKeys, speakerKey) {
+  els.cast.innerHTML = "";
+  portraitKeys.forEach(key => {
+    const character = CHARACTERS[key];
+    if (!character) return;
+    const figure = document.createElement("div");
+    figure.className = "portrait";
+    if (speakerKey && key !== speakerKey) figure.classList.add("dim");
+    figure.setAttribute("role", "img");
+    figure.setAttribute("aria-label", character.name);
+    figure.innerHTML = character.art;
+    els.cast.appendChild(figure);
+  });
+}
+
+/* Typewriter effect: reveal the line one letter at a time.
+   With reduced motion turned on, the whole line appears at once. */
+function typeText(fullText) {
+  stopTyping();
+  typingFullText = fullText;
+  if (reduceMotion.matches) {
+    els.line.textContent = fullText;
+    return;
+  }
+  let shown = 0;
+  els.line.textContent = "";
+  typingTimer = setInterval(() => {
+    shown += 1;
+    els.line.textContent = fullText.slice(0, shown);
+    if (shown >= fullText.length) stopTyping();
+  }, 24);
+}
+
+function stopTyping() {
+  clearInterval(typingTimer);
+  typingTimer = null;
+}
+
+function isTyping() {
+  return typingTimer !== null;
+}
+
+/* Skip the typewriter and show the whole line straight away */
+function finishTyping() {
+  if (!isTyping()) return;
+  stopTyping();
+  els.line.textContent = typingFullText;
+}
+
+/* Build one button. Choices get a small number badge showing their
+   keyboard shortcut (1, 2, ...). */
+function makeButton(label, onClick, { isChoice = false, number = null } = {}) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = isChoice ? "btn choice" : "btn";
+  if (number !== null) {
+    const key = document.createElement("span");
+    key.className = "key";
+    key.setAttribute("aria-hidden", "true");
+    key.textContent = number;
+    button.appendChild(key);
+  }
+  button.appendChild(document.createTextNode(label));
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+/* Decide which buttons to show under the words:
+   - more lines to come  -> "Next"
+   - last line, ending   -> "Play again"
+   - last line, choices  -> one button per choice
+   Focus then moves to the first button, which is linked to the full line
+   of text so screen readers read the words along with the button. */
+function renderActions(scene, isLastLine) {
+  els.actions.innerHTML = "";
+  const buttons = [];
+
+  if (!isLastLine) {
+    buttons.push(makeButton("Next", () => {
+      // First press finishes the typewriter; the next press moves on
+      if (isTyping()) finishTyping();
+      else advanceLine();
+    }));
+  } else if (scene.ending) {
+    buttons.push(makeButton("Play again", () => goToScene(FIRST_SCENE_ID)));
+  } else {
+    (scene.choices || []).forEach((choice, index) => {
+      buttons.push(makeButton(choice.label, () => goToScene(choice.next),
+        { isChoice: true, number: index + 1 }));
+    });
+  }
+
+  els.actions.setAttribute("aria-label", isLastLine && !scene.ending ? "Choices" : "Continue");
+  if (buttons.length === 0) return;
+  buttons[0].setAttribute("aria-describedby", "sr-line");
+  els.actions.append(...buttons);
+  buttons[0].focus({ preventScroll: true });
+}
+
+/* Show the current line: speaker name, characters, words and buttons */
+function showLine() {
+  const scene = state.scene;
+  const line = scene.lines[state.lineIndex];
+  const isLastLine = state.lineIndex === scene.lines.length - 1;
+  const speakerKey = characterKeyFor(line.speaker);
+
+  els.nameplate.textContent = line.speaker;
+  els.nameplate.dataset.who = speakerKey || "narrator";
+  els.stamp.hidden = !(scene.ending && isLastLine);
+
+  renderCast(line.portraits || [], speakerKey);
+
+  // Screen readers get the scene title on the first line, then speaker and words
+  const sceneIntro = state.lineIndex === 0 ? `${scene.title}. ` : "";
+  els.srLine.textContent = `${sceneIntro}${line.speaker}: ${line.text}`;
+
+  typeText(line.text);
+  renderActions(scene, isLastLine);
+}
+
+/* Move on to the next line within the same scene */
+function advanceLine() {
+  if (state.lineIndex < state.scene.lines.length - 1) {
+    state.lineIndex += 1;
+    showLine();
+  }
+}
+
+/* Jump to a scene by its id and show its first line */
+function goToScene(sceneId) {
+  const scene = scenesById.get(sceneId);
+  if (!scene) {
+    console.error(`No scene called "${sceneId}". Check the "next" values in the STORY list.`);
+    return;
+  }
+  state.scene = scene;
+  state.lineIndex = 0;
+  setBackground(scene.background);
+  els.chip.textContent = scene.title;
+  document.title = `${scene.title} | The Magic Stones`;
+  showLine();
+}
+
+/* Leave the title screen and begin the story */
+function startGame() {
+  els.titleScreen.hidden = true;
+  els.game.hidden = false;
+  goToScene(FIRST_SCENE_ID);
+}
+
+/* ---------- Wiring up clicks and keys ---------- */
+
+els.startBtn.addEventListener("click", startGame);
+
+// Clicking the words finishes the typewriter early
+els.line.addEventListener("click", finishTyping);
+
+// Number keys pick choices (1 for the first, 2 for the second, and so on)
+document.addEventListener("keydown", event => {
+  if (els.game.hidden || event.altKey || event.ctrlKey || event.metaKey) return;
+  const number = parseInt(event.key, 10);
+  if (Number.isNaN(number)) return;
+  const choiceButtons = els.actions.querySelectorAll(".choice");
+  const target = choiceButtons[number - 1];
+  if (target) {
+    event.preventDefault();
+    target.click();
+  }
+});
+
+/* ---------- Start up ---------- */
+checkStory();
+setBackground("city");
+</script>
+</body>
+</html>
